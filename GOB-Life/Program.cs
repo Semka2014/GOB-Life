@@ -1,5 +1,4 @@
-﻿using SDL2;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -50,6 +49,7 @@ namespace GOB_Life
         wait,
         photosyntes,
         rep,
+        sex,
         Rrot,
         Lrot,
         walk,
@@ -177,6 +177,9 @@ namespace GOB_Life
                     break;
                 case Gtype.rep:
                     caption = "rp";
+                    break;
+                case Gtype.sex:
+                    caption = "sex";
                     break;
                 case Gtype.Rrot:
                     caption = "rtrn";
@@ -558,26 +561,7 @@ namespace GOB_Life
 
             for (int i = 0; i < Math.Max(e.FDNA.Length, e.DNA.Length); i++)
             {
-                if (i - e.startsk < e.DNA.Length && i < e.FDNA.Length && i >= e.startsk && i - e.startsk >= 0)
-                {
-                    if (e.FDNA[i] == e.DNA[i - e.startsk])
-                        SDL_SetRenderDrawColor(vren, 0, 255, 0, 255);
-                    else
-                        SDL_SetRenderDrawColor(vren, 255, 0, 0, 255);
-                }
-                else
-                {
-                    SDL_SetRenderDrawColor(vren, 0, 0, 255, 255);
-                }
-
-                var rect = new SDL_Rect
-                {
-                    x = cw * i + 5,
-                    y = h - 15,
-                    w = cw - 1,
-                    h = 10,
-                };
-                SDL_RenderFillRect(vren, ref rect);
+                
             }
         }
     }
@@ -619,7 +603,7 @@ namespace GOB_Life
             {
                 for (int y = 0; y < main.height; y++)
                 {
-                    if (main.rnd.Next(0, 100) < 20)
+                    if (main.rnd.Next(0, 100) < 50)
                     {
                         main.cmap[x, y] = new Bot(x, y, 10);
                         main.queue.Add(main.cmap[x, y]);
@@ -656,6 +640,9 @@ namespace GOB_Life
             bool playing = true;
 
             RandomFill();
+
+            int prevCount = -1, grow = 0;
+            bool search = true;
 
             while (running)
             {
@@ -729,6 +716,7 @@ namespace GOB_Life
                             {
                                 case SDL_Keycode.SDLK_g:
                                     RandomFill();
+                                    search = true;
                                     break;
                                 case SDL_Keycode.SDLK_SPACE:
                                     playing = !playing;
@@ -760,6 +748,29 @@ namespace GOB_Life
                 if (playing)
                     main.Tick();
 
+                if (search)
+                {
+                    if (prevCount < main.queue.Count && main.step > 15 && playing)
+                        grow++;
+                    prevCount = main.queue.Count;
+
+                    if (main.step > 100)
+                    {
+                        if (grow > 7)
+                        {
+                            search = false;
+                            Console.Beep(500, 3000);
+                            grow = 0;
+                        }
+                        else
+                        {
+                            Console.Beep(2000, 100);
+                            grow = 0;
+                            RandomFill();
+                        }
+                    }
+                }
+
                 SDL_SetWindowTitle(win, main.step.ToString());
                 SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
                 SDL_RenderClear(ren);
@@ -783,6 +794,7 @@ namespace GOB_Life
                 SDL_RenderPresent(ren);
             }
         }
+
     }
 
     class Gate
@@ -840,6 +852,7 @@ namespace GOB_Life
                 case Gtype.photosyntes:
                 case Gtype.atack:
                 case Gtype.rep:
+                case Gtype.sex:
                 case Gtype.Rrot:
                 case Gtype.Lrot:
                 case Gtype.walk:
@@ -859,7 +872,7 @@ namespace GOB_Life
             }
         }
 
-        public float Count()
+        public float Compute()
         {
             switch (type)
             {
@@ -952,8 +965,8 @@ namespace GOB_Life
 
     static class main
     {
-        public static readonly int winW = 600, winH = 600;
-        public static int width = 200, height = 200, cw = winW / width, ch = winH / height;
+        public static readonly int winW = 400, winH = 400;
+        public static int width = 400, height = 400, cw = winW / width, ch = winH / height;
         public static Bot[,] cmap = new Bot[width, height];
         public static Food[,] fmap = new Food[width, height];
 
@@ -962,7 +975,7 @@ namespace GOB_Life
 
         public static Random rnd = new Random();
         public static int step;
-        public static Gtype[] exp = { Gtype.wait, Gtype.photosyntes, Gtype.rep, Gtype.Rrot, Gtype.Lrot, Gtype.walk, Gtype.atack, Gtype.suicide };
+        public static Gtype[] exp = { Gtype.wait, Gtype.photosyntes, Gtype.rep, Gtype.sex, Gtype.Rrot, Gtype.Lrot, Gtype.walk, Gtype.atack, Gtype.suicide };
 
         public static void Tick()
         {
@@ -995,7 +1008,7 @@ namespace GOB_Life
             for (int i = queue.Count - 1; i >= 0; i--) //сворачиваем очередь
             {
                 var gate = queue[i];
-                signal = gate.Count();
+                signal = gate.Compute();
                 if (signal > 0 && exp.Contains(gate.type)) //выполнение действия
                     return gate.type;
             }
@@ -1051,20 +1064,51 @@ namespace GOB_Life
             Translation();
         }
 
-        public Bot(int x, int y, float nrj, Bot f)
+        public static List<T[]> SplitByElement<T>(T[] array, T delimiter)
         {
-            this.x = x;
-            this.y = y;
-            this.nrj = nrj;
-            FDNA = f.FDNA;
-            mut = f.mut;
-            btime = main.step;
-            startsk = f.startsk;
-            dx = f.dx;
-            dy = f.dy;
-            rot = f.rot;
-            fgen = f.fgen;
+            List<T[]> result = new List<T[]>();
+            List<T> temp = new List<T>();
 
+            foreach (var item in array)
+            {
+                if (item.Equals(delimiter))
+                {
+                    result.Add(temp.ToArray());
+                    temp.Clear();
+                }
+                else
+                {
+                    temp.Add(item);
+                }
+            }
+
+            // Добавляем остаток после последнего разделителя, если он есть
+            if (temp.Count > 0)
+            {
+                result.Add(temp.ToArray());
+            }
+
+            return result;
+        }
+
+        public static T[] CombineWithDelimiter<T>(T[][] arrays, T delimiter)
+        {
+            List<T> result = new List<T>();
+
+            for (int i = 0; i < arrays.Length; i++)
+            {
+                if (i > 0)
+                {
+                    result.Add(delimiter);
+                }
+                result.AddRange(arrays[i]);
+            }
+
+            return result.ToArray();
+        }
+
+        private void Mutation(Gtype[] fDNA)
+        {
             bool m = main.rnd.Next(0, 100) < 5;
             bool SorE;
             if (m && main.rnd.Next(0, 100) < 6)
@@ -1072,32 +1116,26 @@ namespace GOB_Life
                 SorE = main.rnd.Next(0, 100) < 50;
                 if (main.rnd.Next(0, 100) < 50)
                 {
-                    DNA = new Gtype[f.DNA.Length + 1];
+                    DNA = new Gtype[fDNA.Length + 1];
                     if (SorE)
-                    {
-                        Array.Copy(f.DNA, 0, DNA, 1, f.DNA.Length);
-                        startsk--;
-                    }
+                        Array.Copy(fDNA, 0, DNA, 1, fDNA.Length);
                     else
-                        Array.Copy(f.DNA, DNA, f.DNA.Length);
+                        Array.Copy(fDNA, DNA, fDNA.Length);
                 }
                 else
                 {
-                    DNA = new Gtype[f.DNA.Length - 1];
+                    DNA = new Gtype[fDNA.Length - 1];
                     if (SorE)
-                    {
-                        Array.Copy(f.DNA, 1, DNA, 0, DNA.Length);
-                        startsk++;
-                    }
+                        Array.Copy(fDNA, 1, DNA, 0, DNA.Length);
                     else
-                        Array.Copy(f.DNA, DNA, DNA.Length);
+                        Array.Copy(fDNA, DNA, DNA.Length);
                     mut++;
                 }
             } //изменение длины днк
             else
             {
-                DNA = new Gtype[f.DNA.Length];
-                Array.Copy(f.DNA, DNA, f.DNA.Length);
+                DNA = new Gtype[fDNA.Length];
+                Array.Copy(fDNA, DNA, fDNA.Length);
             }
 
             var nykls = Enum.GetValues(typeof(Gtype));
@@ -1109,6 +1147,57 @@ namespace GOB_Life
                     mut++;
                 }
             } //мутации
+        } //копирует днк к текущему боту со случайными изменениями
+
+        private Gtype[] Crossingover(Gtype[] dna1, Gtype[] dna2)
+        {
+            Gtype[][] Sdna1 = SplitByElement(dna1, Gtype.start).ToArray();
+            Gtype[][] Sdna2 = SplitByElement(dna2, Gtype.start).ToArray();
+            Gtype[][] dna = new Gtype[Math.Max(Sdna1.Length, Sdna2.Length)][];
+
+            for (int i = 0; i < dna.Length; i++)
+            {
+                if (i >= Sdna1.Length || (i < Sdna2.Length && main.rnd.Next(100) < 50))
+                {
+                    dna[i] = Sdna2[i];
+                    if (i < Sdna1.Length)
+                    {
+                        for (int j = 0; j < Math.Min(Sdna1[i].Length, Sdna2[i].Length); j++)
+                        {
+                            if (i >= Sdna1.Length)
+                                mut++;
+                            else
+                            {
+                                if (Sdna1[i][j] != Sdna2[i][j])
+                                    mut++;
+                            }
+                        }
+                        mut += Math.Abs(Sdna1.Length - Sdna2.Length);
+                    }
+                    else
+                        mut += Sdna2[i].Length;
+                }
+                else
+                    dna[i] = Sdna1[i];
+            }
+
+            return CombineWithDelimiter(dna, Gtype.start);
+        }
+
+        public Bot(int x, int y, float nrj, Bot f)
+        {
+            this.x = x;
+            this.y = y;
+            this.nrj = nrj;
+            FDNA = f.FDNA;
+            mut = f.mut;
+            btime = main.step;
+            dx = f.dx;
+            dy = f.dy;
+            rot = f.rot;
+            fgen = f.fgen;
+
+            Mutation(f.DNA);
 
             if (mut > 2)
             {
@@ -1121,13 +1210,40 @@ namespace GOB_Life
             Translation();
         }
 
-        public int x, y, startsk;
+        public Bot(int x, int y, float nrj, Bot p1, Bot p2)
+        {
+            //условно p1 - отец - инициатор, p2 - мать - создаёт бота
+            this.x = x;
+            this.y = y;
+            this.nrj = nrj;
+            FDNA = p1.FDNA;
+            mut = p1.mut + p2.mut;
+            btime = main.step;
+            dx = p2.dx;
+            dy = p2.dy;
+            rot = p2.rot;
+            fgen = p1.fgen;
+
+            Mutation(Crossingover(p1.DNA, p2.DNA));
+
+            if (mut / DNA.Length * 100 >= 10)
+            {
+                gen = main.rnd.Next(int.MinValue, int.MaxValue);
+                mut = 0;
+            } //критичное колличество мутаций
+            else
+                gen = p1.gen;
+
+            Translation();
+        }
+
+        public int x, y; //сколько пропускать нуклеотидов (для визуализации)
         private int dx = 1;
-        private int dy = 1;
-        private readonly int mut;
-        private int rot;
+        private int dy = 1; //направление поворота
+        private int mut; //сколько мутаций было
+        private int rot; //поворот
         private readonly int btime;
-        public int gen, fgen;
+        public int gen, fgen; //ген и ген отца
         float nrj;
         public List<Gate> gates = new List<Gate>();
         public Gtype[] DNA, FDNA;
@@ -1149,12 +1265,13 @@ namespace GOB_Life
                         case Gtype.stop:
                             ins.Clear();
                             outs.Clear();
+                            adr = -1;
                             break;
                         case Gtype.skip:
-                            //adr--;
+                            adr--;
                             break;
                         case Gtype.undo:
-                            //adr++;
+                            adr++;
                             break;
                         default:
                             wt = DNA[i];
@@ -1280,10 +1397,26 @@ namespace GOB_Life
                     nrj += 2;
                     break;
                 case Gtype.rep: //размножение
+                    /*
                     if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
                     {
                         main.cmap[tx, ty] = new Bot(tx, ty, 5, this);
                         main.bqueue.Add(main.cmap[tx, ty]);
+                    }
+                    break;
+                    */
+                case Gtype.sex: //половое размножение
+                    if (main.cmap[tx, ty] != null) //есть ли второй родитель
+                    {
+                        Bot p2 = main.cmap[tx, ty];
+                        int tx2 = (p2.x + p2.dx + main.width) % main.width;
+                        int ty2 = (p2.y + p2.dy + main.height) % main.height;
+
+                        if (main.cmap[tx2, ty2] == null && main.fmap[tx2, ty2] == null) //пусто ли перед вторым родителем
+                        {
+                            main.cmap[tx2, ty2] = new Bot(tx2, ty2, 5, this, p2);
+                            main.bqueue.Add(main.cmap[tx2, ty2]);
+                        }
                     }
                     break;
                 case Gtype.Rrot: //поворот 1
