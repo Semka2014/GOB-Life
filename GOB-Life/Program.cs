@@ -1,19 +1,13 @@
-﻿using System;
-using System.Collections;
+﻿using SDL2;
+using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
-using SDL2;
 using static SDL2.SDL;
 
 namespace GOB_Life
 {
-    enum gtype
+    enum Gtype
     {
         empty,
         //coddons:
@@ -69,149 +63,149 @@ namespace GOB_Life
         c11,
     }
 
-    static class visualize
+    static class Visualize
     {
-        static string GtypeToSrt(gtype type)
+        static string GtypeToSrt(Gtype type)
         {
             string caption;
             switch (type)
             {
-                case gtype.gen:
+                case Gtype.gen:
                     caption = "gn";
                     break;
-                case gtype.fgen:
+                case Gtype.fgen:
                     caption = "fgn";
                     break;
-                case gtype.mut:
+                case Gtype.mut:
                     caption = "mut";
                     break;
-                case gtype.posx:
+                case Gtype.posx:
                     caption = "x";
                     break;
-                case gtype.posy:
+                case Gtype.posy:
                     caption = "y";
                     break;
-                case gtype.time:
+                case Gtype.time:
                     caption = "t";
                     break;
-                case gtype.start:
+                case Gtype.start:
                     caption = "st";
                     break;
-                case gtype.stop:
+                case Gtype.stop:
                     caption = "sp";
                     break;
-                case gtype.input:
+                case Gtype.input:
                     caption = "in";
                     break;
-                case gtype.output:
+                case Gtype.output:
                     caption = "out";
                     break;
-                case gtype.skip:
+                case Gtype.skip:
                     caption = "sk";
                     break;
-                case gtype.undo:
+                case Gtype.undo:
                     caption = "un";
                     break;
-                case gtype.add:
+                case Gtype.add:
                     caption = "+";
                     break;
-                case gtype.sub:
+                case Gtype.sub:
                     caption = "-";
                     break;
-                case gtype.mul:
+                case Gtype.mul:
                     caption = "*";
                     break;
-                case gtype.div:
+                case Gtype.div:
                     caption = "/";
                     break;
-                case gtype.grate:
+                case Gtype.grate:
                     caption = ">";
                     break;
-                case gtype.less:
+                case Gtype.less:
                     caption = "<";
                     break;
-                case gtype.equal:
+                case Gtype.equal:
                     caption = "=";
                     break;
-                case gtype.not:
+                case Gtype.not:
                     caption = "not";
                     break;
-                case gtype.mod:
+                case Gtype.mod:
                     caption = "mod";
                     break;
-                case gtype.memory:
+                case Gtype.memory:
                     caption = "mem";
                     break;
-                case gtype.and:
+                case Gtype.and:
                     caption = "and";
                     break;
-                case gtype.or:
+                case Gtype.or:
                     caption = "or";
                     break;
-                case gtype.xor:
+                case Gtype.xor:
                     caption = "xor";
                     break;
-                case gtype.dup2:
+                case Gtype.dup2:
                     caption = "";
                     break;
-                case gtype.dup3:
+                case Gtype.dup3:
                     caption = "";
                     break;
-                case gtype.rand:
+                case Gtype.rand:
                     caption = "rnd";
                     break;
-                case gtype.btime:
+                case Gtype.btime:
                     caption = "bt";
                     break;
-                case gtype.bot:
+                case Gtype.bot:
                     caption = "bt";
                     break;
-                case gtype.rbot:
+                case Gtype.rbot:
                     caption = "rbt";
                     break;
-                case gtype.food:
+                case Gtype.food:
                     caption = "fd";
                     break;
-                case gtype.nrj:
+                case Gtype.nrj:
                     caption = "en";
                     break;
-                case gtype.wait:
+                case Gtype.wait:
                     caption = "w";
                     break;
-                case gtype.photosyntes:
+                case Gtype.photosyntes:
                     caption = "ph";
                     break;
-                case gtype.rep:
+                case Gtype.rep:
                     caption = "rp";
                     break;
-                case gtype.Rrot:
+                case Gtype.Rrot:
                     caption = "rtrn";
                     break;
-                case gtype.Lrot:
+                case Gtype.Lrot:
                     caption = "ltrn";
                     break;
-                case gtype.walk:
+                case Gtype.walk:
                     caption = "wk";
                     break;
-                case gtype.atack:
+                case Gtype.atack:
                     caption = "atk";
                     break;
-                case gtype.suicide:
+                case Gtype.suicide:
                     caption = "su";
                     break;
-                case gtype.c0:
+                case Gtype.c0:
                     caption = "0";
                     break;
-                case gtype.c1:
+                case Gtype.c1:
                     caption = "1";
                     break;
-                case gtype.c2:
+                case Gtype.c2:
                     caption = "2";
                     break;
-                case gtype.c5:
+                case Gtype.c5:
                     caption = "5";
                     break;
-                case gtype.c11:
+                case Gtype.c11:
                     caption = "11";
                     break;
                 default:
@@ -229,7 +223,7 @@ namespace GOB_Life
                 int[] cords = Array.ConvertAll(cmds.ToCharArray(), x => int.Parse(x.ToString()) * size);
                 for (int i = 2; i < cords.Length; i += 2)
                 {
-                    SDL.SDL_RenderDrawLine(vren, cords[i - 2] + s + cx, cords[i - 1] + cy, cords[i] + s + cx, cords[i + 1] + cy);
+                    SDL_RenderDrawLine(vren, cords[i - 2] + s + cx, cords[i - 1] + cy, cords[i] + s + cx, cords[i + 1] + cy);
                 }
             }
 
@@ -375,13 +369,13 @@ namespace GOB_Life
         }
 
         static public IntPtr vren;
-        static List<(gate, node)> queue = new List<(gate, node)>();
-        static List<edge> edges = new List<edge>();
+        private static readonly List<(Gate, Node)> queue = new List<(Gate, Node)>();
+        static readonly List<Edge> edges = new List<Edge>();
 
-        class edge
+        class Edge
         {
             public int x1, y1, x2, y2, layer;
-            public edge(int x1, int y1, int x2, int y2, int layer)
+            public Edge(int x1, int y1, int x2, int y2, int layer)
             {
                 this.x1 = x1;
                 this.y1 = y1;
@@ -390,16 +384,16 @@ namespace GOB_Life
                 this.layer = layer;
             }
         }
-        class node
+        class Node
         {
-            public gate g;
+            public Gate g;
             public int x, y, w, h;
             public (int, int)[] input, output;
             public int layer;
-            public node(gate gate, int x, int y, int layer)
+            public Node(Gate gate, int x, int y, int layer)
             {
                 g = gate;
-                bool dupe = g.type == gtype.dup2 || g.type == gtype.dup3; //особая отрисовка (линии)
+                bool dupe = g.type == Gtype.dup2 || g.type == Gtype.dup3; //особая отрисовка (линии)
                 this.x = x;
                 this.y = dupe ? y + 5 : y;
                 this.layer = layer;
@@ -428,20 +422,20 @@ namespace GOB_Life
             }
         }
 
-        public static void Brain(bot e)
+        public static void Brain(Bot e)
         {
             int layer = 0;
             queue.Clear();
             edges.Clear();
             int x = 10, y = 0;
             bool mem = true; //запомнить гейт
-            (gate, node) flg = (null, null); //запомненый гейт
+            (Gate, Node) flg = (null, null); //запомненый гейт
 
-            foreach (gate gate in e.gates) //определяем точки выхода
+            foreach (Gate gate in e.gates) //определяем точки выхода
             {
                 if (main.exp.Contains(gate.type) && gate.input[0].A != null)
                 {
-                    var node = new node(gate, x, y, layer);
+                    var node = new Node(gate, x, y, layer);
                     y += node.h + 5;
                     queue.Add((gate, node));
                     if (mem)
@@ -460,13 +454,13 @@ namespace GOB_Life
                 if (flg == queue[i]) //начинается новый слой
                 {
                     //сдвигаем все ноды по центру
-                    SDL_GetWindowSize(Program.vwin, out int wx, out int wy);
+                    SDL_GetWindowSize(Program.vwin, out _, out int wy);
                     int dy = (wy - y) / 2;
                     foreach (var gt in queue)
                     {
                         if (gt.Item2.layer != layer)
                             continue;
-                        node nod = gt.Item2;
+                        Node nod = gt.Item2;
                         nod.y += dy;
                         for (int ii = 0; ii < nod.input.Length; ii++)
                             nod.input[ii].Item2 += dy;
@@ -491,8 +485,8 @@ namespace GOB_Life
                 {
                     foreach (var gate2 in e.gates)
                     {
-                        for (int l = 0; l < gate2.output.Length; l++) 
-                        { 
+                        for (int l = 0; l < gate2.output.Length; l++)
+                        {
                             var l1 = gate2.output[l];
                             if (l1 == gate1.input[j])
                             {
@@ -504,13 +498,13 @@ namespace GOB_Life
                                 Тут мы её как раз нашли и теперь создаём новую ноду и линию
                                 */
 
-                                var node2 = new node(gate2, x, y, layer);
+                                var node2 = new Node(gate2, x, y, layer);
                                 y += node2.h == 0 ? 15 : node2.h + 5;
                                 int x1 = node.input[j].Item1;
                                 int y1 = node.input[j].Item2;
                                 int x2 = node2.output[l].Item1;
                                 int y2 = node2.output[l].Item2;
-                                edges.Add(new edge(x1, y1, x2, y2, layer));
+                                edges.Add(new Edge(x1, y1, x2, y2, layer));
                                 queue.Add((gate2, node2));
                                 if (mem)
                                 {
@@ -532,9 +526,9 @@ namespace GOB_Life
             SDL_SetRenderDrawColor(vren, 200, 200, 200, 255);
             SDL_RenderClear(vren);
             SDL_SetRenderDrawColor(vren, 0, 0, 0, 255);
-            foreach(var en in queue)
+            foreach (var en in queue)
             {
-                node node = en.Item2;
+                Node node = en.Item2;
                 string caption = GtypeToSrt(node.g.type);
 
                 var rect = new SDL_Rect
@@ -546,7 +540,7 @@ namespace GOB_Life
                 };
                 SDL_RenderDrawRect(vren, ref rect);
 
-                 //сокращения названий гейтов
+                //сокращения названий гейтов
                 int tw = 2 * caption.Length + 4 * 2 * (caption.Length - 1);
                 DisplayText(rect.x + (rect.w - tw) / 2, rect.y + (rect.h - 10) / 2, 2, 4, caption);
             }
@@ -556,7 +550,7 @@ namespace GOB_Life
             }
         }
 
-        public static void Dna(bot e)
+        public static void Dna(Bot e)
         {
             SDL_SetRenderDrawColor(vren, 0, 0, 0, 255);
             SDL_GetWindowSize(Program.vwin, out int w, out int h);
@@ -576,7 +570,8 @@ namespace GOB_Life
                     SDL_SetRenderDrawColor(vren, 0, 0, 255, 255);
                 }
 
-                var rect = new SDL_Rect {
+                var rect = new SDL_Rect
+                {
                     x = cw * i + 5,
                     y = h - 15,
                     w = cw - 1,
@@ -616,8 +611,8 @@ namespace GOB_Life
         static void RandomFill()
         {
             main.step = 0;
-            main.cmap = new bot[main.width, main.height];
-            main.fmap = new food[main.width, main.height];
+            main.cmap = new Bot[main.width, main.height];
+            main.fmap = new Food[main.width, main.height];
             main.queue.Clear();
 
             for (int x = 0; x < main.width; x++)
@@ -626,11 +621,11 @@ namespace GOB_Life
                 {
                     if (main.rnd.Next(0, 100) < 20)
                     {
-                        main.cmap[x, y] = new bot(x, y, 10);
+                        main.cmap[x, y] = new Bot(x, y, 10);
                         main.queue.Add(main.cmap[x, y]);
                     }
                     else if (main.rnd.Next(0, 100) < 50)
-                        main.fmap[x, y] = new food(x, y, 10);
+                        main.fmap[x, y] = new Food(x, y, 10);
                 }
             }
 
@@ -645,17 +640,17 @@ namespace GOB_Life
             */
         }
 
-        public static IntPtr vwin = SDL_CreateWindow("321", 600, 100, 500, 500, SDL_WindowFlags.SDL_WINDOW_BORDERLESS);
-        static void Main(string[] args)
+        public static IntPtr vwin = SDL_CreateWindow("321", main.winW + 30, 30, main.winW, main.winH, SDL_WindowFlags.SDL_WINDOW_BORDERLESS);
+        static void Main()
         {
-            var win = SDL_CreateWindow("123", 100, 100, 500, 500, SDL_WindowFlags.SDL_WINDOW_BORDERLESS);
+            var win = SDL_CreateWindow("123", 30, 30, main.winW, main.winH, SDL_WindowFlags.SDL_WINDOW_BORDERLESS);
             var ren = SDL_CreateRenderer(win, 0, SDL_RendererFlags.SDL_RENDERER_SOFTWARE);
 
-            visualize.vren = SDL_CreateRenderer(vwin, 1, SDL_RendererFlags.SDL_RENDERER_SOFTWARE);
+            Visualize.vren = SDL_CreateRenderer(vwin, 1, SDL_RendererFlags.SDL_RENDERER_SOFTWARE);
 
-            SDL_SetRenderDrawColor(visualize.vren, 200, 200, 200, 255);
-            SDL_RenderClear(visualize.vren);
-            SDL_RenderPresent(visualize.vren);
+            SDL_SetRenderDrawColor(Visualize.vren, 200, 200, 200, 255);
+            SDL_RenderClear(Visualize.vren);
+            SDL_RenderPresent(Visualize.vren);
 
             bool running = true;
             bool playing = true;
@@ -664,7 +659,7 @@ namespace GOB_Life
 
             while (running)
             {
-                while(SDL_PollEvent(out SDL_Event e) == 1)
+                while (SDL_PollEvent(out SDL_Event e) == 1)
                 {
                     switch (e.type)
                     {
@@ -672,7 +667,7 @@ namespace GOB_Life
                             running = false;
                             break;
                         case SDL_EventType.SDL_MOUSEBUTTONUP:
-                            
+
                             int x, y;
                             SDL_GetMouseState(out x, out y);
                             x /= main.cw;
@@ -680,16 +675,16 @@ namespace GOB_Life
 
                             if (e.window.windowID == 2)
                             {
-                                bot b = main.cmap[x, y];
+                                Bot b = main.cmap[x, y];
 
                                 switch (e.button.button)
                                 {
                                     case (byte)SDL_BUTTON_LEFT:
                                         if (b != null)
                                         {
-                                            visualize.Brain(b);
-                                            visualize.Dna(b);
-                                            SDL_RenderPresent(visualize.vren);
+                                            Visualize.Brain(b);
+                                            Visualize.Dna(b);
+                                            SDL_RenderPresent(Visualize.vren);
                                         }
                                         break;
                                     case (byte)SDL_BUTTON_RIGHT:
@@ -713,12 +708,12 @@ namespace GOB_Life
                                         try
                                         {
                                             string[] tdna = SDL_GetClipboardText().Split();
-                                            gtype[] Idna = new gtype[tdna.Length];
+                                            Gtype[] Idna = new Gtype[tdna.Length];
                                             for (int i = 0; i < Idna.Length; i++)
                                             {
-                                                Idna[i] = (gtype)Enum.Parse(typeof(gtype), tdna[i]);
+                                                Idna[i] = (Gtype)Enum.Parse(typeof(Gtype), tdna[i]);
                                             }
-                                            main.queue.Add(new bot(x, y, 10, main.rnd.Next(int.MinValue, int.MaxValue), Idna));
+                                            main.queue.Add(new Bot(x, y, 10, main.rnd.Next(int.MinValue, int.MaxValue), Idna));
                                             main.cmap[x, y] = main.queue.Last();
                                         }
                                         catch { };
@@ -758,27 +753,27 @@ namespace GOB_Life
                                     break;
                             }
                             break;
-                        
+
                     }
                 }
 
                 if (playing)
-                    main.tick();
+                    main.Tick();
 
                 SDL_SetWindowTitle(win, main.step.ToString());
                 SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
                 SDL_RenderClear(ren);
-                foreach (bot bot in main.queue)
+                foreach (Bot bot in main.queue)
                 {
                     var rect = new SDL_Rect { x = bot.x * main.cw, y = bot.y * main.ch, w = main.cw, h = main.ch };
-                    byte r, g, b;
-                    GenToColor(bot.gen, out r, out g, out b);
+
+                    GenToColor(bot.gen, out byte r, out byte g, out byte b);
 
                     SDL_SetRenderDrawColor(ren, r, g, b, 255);
                     SDL_RenderFillRect(ren, ref rect);
                 }
                 SDL_SetRenderDrawColor(ren, 50, 50, 50, 255);
-                foreach (food f in main.fmap)
+                foreach (Food f in main.fmap)
                 {
                     if (f == null)
                         continue;
@@ -790,146 +785,146 @@ namespace GOB_Life
         }
     }
 
-    class gate
+    class Gate
     {
-        public link[] input;
-        public link[] output;
-        public gtype type;
-        public gate(gtype type)
+        public Link[] input;
+        public Link[] output;
+        public Gtype type;
+        public Gate(Gtype type)
         {
             this.type = type;
-            switch(type)
+            switch (type)
             {
-                case gtype.and:
-                case gtype.or:
-                case gtype.xor:
-                case gtype.mod:
-                case gtype.mul:
-                case gtype.grate:
-                case gtype.less:
-                case gtype.equal:
-                case gtype.div:
-                case gtype.sub:
-                case gtype.add:
-                    input = new link[2];
-                    output = new link[1];
-                break;
-
-                case gtype.memory:
-                case gtype.not:
-                    input = new link[1];
-                    output = new link[1];
-                break;
-
-                case gtype.mut:
-                case gtype.fgen:
-                case gtype.gen:
-                case gtype.btime:
-                case gtype.c0:
-                case gtype.c1:
-                case gtype.c2:
-                case gtype.c5:
-                case gtype.c11:
-                case gtype.posy:
-                case gtype.posx:
-                case gtype.nrj:
-                case gtype.food:
-                case gtype.rbot:
-                case gtype.bot:
-                case gtype.time:
-                case gtype.rand:
-                    input = new link[0];
-                    output = new link[1];
-                break;
-                case gtype.suicide:
-                case gtype.photosyntes:
-                case gtype.atack:
-                case gtype.rep:
-                case gtype.Rrot:
-                case gtype.Lrot:
-                case gtype.walk:
-                case gtype.wait:
-                    input = new link[1];
-                    output = new link[0];
+                case Gtype.and:
+                case Gtype.or:
+                case Gtype.xor:
+                case Gtype.mod:
+                case Gtype.mul:
+                case Gtype.grate:
+                case Gtype.less:
+                case Gtype.equal:
+                case Gtype.div:
+                case Gtype.sub:
+                case Gtype.add:
+                    input = new Link[2];
+                    output = new Link[1];
                     break;
 
-                case gtype.dup2:
-                    input = new link[1];
-                    output = new link[2];
+                case Gtype.memory:
+                case Gtype.not:
+                    input = new Link[1];
+                    output = new Link[1];
                     break;
-                case gtype.dup3:
-                    input = new link[1];
-                    output = new link[3];
+
+                case Gtype.mut:
+                case Gtype.fgen:
+                case Gtype.gen:
+                case Gtype.btime:
+                case Gtype.c0:
+                case Gtype.c1:
+                case Gtype.c2:
+                case Gtype.c5:
+                case Gtype.c11:
+                case Gtype.posy:
+                case Gtype.posx:
+                case Gtype.nrj:
+                case Gtype.food:
+                case Gtype.rbot:
+                case Gtype.bot:
+                case Gtype.time:
+                case Gtype.rand:
+                    input = new Link[0];
+                    output = new Link[1];
+                    break;
+                case Gtype.suicide:
+                case Gtype.photosyntes:
+                case Gtype.atack:
+                case Gtype.rep:
+                case Gtype.Rrot:
+                case Gtype.Lrot:
+                case Gtype.walk:
+                case Gtype.wait:
+                    input = new Link[1];
+                    output = new Link[0];
+                    break;
+
+                case Gtype.dup2:
+                    input = new Link[1];
+                    output = new Link[2];
+                    break;
+                case Gtype.dup3:
+                    input = new Link[1];
+                    output = new Link[3];
                     break;
             }
         }
 
-        public float count()
+        public float Count()
         {
             switch (type)
             {
-                case gtype.add:
+                case Gtype.add:
                     output[0].f = input[0].f + input[1].f;
                     break;
-                case gtype.sub:
+                case Gtype.sub:
                     output[0].f = input[0].f - input[1].f;
                     break;
-                case gtype.mul:
+                case Gtype.mul:
                     output[0].f = input[0].f * input[1].f;
                     break;
-                case gtype.div:
+                case Gtype.div:
                     output[0].f = input[0].f / input[1].f;
                     break;
-                case gtype.equal:
+                case Gtype.equal:
                     output[0].f = input[0].f == input[1].f ? 1 : 0;
                     break;
-                case gtype.mod:
+                case Gtype.mod:
                     output[0].f = input[0].f % input[1].f;
                     break;
-                case gtype.grate:
+                case Gtype.grate:
                     output[0].f = input[0].f > input[1].f ? 1 : 0;
                     break;
-                case gtype.less:
+                case Gtype.less:
                     output[0].f = input[0].f < input[1].f ? 1 : 0;
                     break;
-                case gtype.not:
+                case Gtype.not:
                     output[0].f = 1 - input[0].f;
                     break;
-                case gtype.memory:
+                case Gtype.memory:
                     output[0].f += input[0].f;
                     break;
-                case gtype.and:
+                case Gtype.and:
                     output[0].f = input[0].f > 0.5 && input[1].f > 0.5 ? 1 : 0;
                     break;
-                case gtype.or:
+                case Gtype.or:
                     output[0].f = input[0].f > 0.5 || input[1].f > 0.5 ? 1 : 0;
                     break;
-                case gtype.xor:
+                case Gtype.xor:
                     output[0].f = input[0].f > 0.5 ^ input[1].f > 0.5 ? 1 : 0;
                     break;
-                case gtype.dup2:
+                case Gtype.dup2:
                     output[0].f = input[0].f;
                     output[1].f = input[0].f;
                     break;
-                case gtype.dup3:
+                case Gtype.dup3:
                     output[0].f = input[0].f;
                     output[1].f = input[0].f;
                     output[2].f = input[0].f;
                     break;
 
-                case gtype.c0:
+                case Gtype.c0:
                     output[0].f = 0;
                     break;
-                case gtype.c1:
+                case Gtype.c1:
                     output[0].f = 1;
                     break;
-                case gtype.c2:
+                case Gtype.c2:
                     output[0].f = 2;
                     break;
-                case gtype.c5:
+                case Gtype.c5:
                     output[0].f = 5;
                     break;
-                case gtype.c11:
+                case Gtype.c11:
                     output[0].f = 11;
                     break;
 
@@ -941,14 +936,14 @@ namespace GOB_Life
             return input[0].f;
         }
     }
-    
-    class link
+
+    class Link
     {
-        public gate A;
-        public gate B;
+        public Gate A;
+        public Gate B;
         public float f;
 
-        public link(gate A, gate B)
+        public Link(Gate A, Gate B)
         {
             this.A = A;
             this.B = B;
@@ -957,63 +952,64 @@ namespace GOB_Life
 
     static class main
     {
-        public static int width = 250, height = 250, cw = 500 / width, ch = 500 / height;
-        public static bot[,] cmap = new bot[width, height];
-        public static food[,] fmap = new food[width, height];
+        public static readonly int winW = 600, winH = 600;
+        public static int width = 200, height = 200, cw = winW / width, ch = winH / height;
+        public static Bot[,] cmap = new Bot[width, height];
+        public static Food[,] fmap = new Food[width, height];
 
-        public static List<bot> queue = new List<bot>();
-        public static List<bot> bqueue = new List<bot>();
+        public static List<Bot> queue = new List<Bot>();
+        public static List<Bot> bqueue = new List<Bot>();
 
         public static Random rnd = new Random();
         public static int step;
-        public static gtype[] exp = { gtype.wait, gtype.photosyntes, gtype.rep, gtype.Rrot, gtype.Lrot, gtype.walk, gtype.atack, gtype.suicide };
+        public static Gtype[] exp = { Gtype.wait, Gtype.photosyntes, Gtype.rep, Gtype.Rrot, Gtype.Lrot, Gtype.walk, Gtype.atack, Gtype.suicide };
 
-        public static void tick()
+        public static void Tick()
         {
-            foreach (bot bot in queue)
+            foreach (Bot bot in queue)
             {
                 bot.Init();
             }
-            queue = new List<bot>(bqueue);
+            queue = new List<Bot>(bqueue);
             bqueue.Clear();
 
             step++;
         }
 
-        static public gtype think(bot e, out float signal)
+        static public Gtype Think(Bot e, out float signal)
         {
-            List<gate> queue = new List<gate>();
+            List<Gate> queue = new List<Gate>();
 
-            foreach (gate gate in e.gates)
-            { 
+            foreach (Gate gate in e.gates)
+            {
                 if (exp.Contains(gate.type))
                     queue.Add(gate);
             } //определяем точки выхода (действия)
             for (int i = 0; i < queue.Count; i++)
             {
                 var gate = queue[i];
-                foreach(var link in gate.input)
+                foreach (var link in gate.input)
                     if (!queue.Contains(link.A) && link.A != null)
                         queue.Add(link.A);
             } //продолжаем очередь
             for (int i = queue.Count - 1; i >= 0; i--) //сворачиваем очередь
             {
                 var gate = queue[i];
-                signal = gate.count();
+                signal = gate.Count();
                 if (signal > 0 && exp.Contains(gate.type)) //выполнение действия
                     return gate.type;
             }
 
             signal = 0;
-            return gtype.wait;
+            return Gtype.wait;
         } //вызывает гейты в нужном порядке
     }
 
-    class food
+    class Food
     {
         public int x, y;
         public float nrj;
-        public food(int x, int y, float nrj)
+        public Food(int x, int y, float nrj)
         {
             this.x = x;
             this.y = y;
@@ -1021,28 +1017,28 @@ namespace GOB_Life
         }
     }
 
-    class bot
+    class Bot
     {
-        public bot(int x, int y, float nrj)
+        public Bot(int x, int y, float nrj)
         {
             this.x = x;
             this.y = y;
             this.nrj = nrj;
             mut = 0;
-            DNA = new gtype[main.rnd.Next(10, 200)];
+            DNA = new Gtype[main.rnd.Next(10, 200)];
             gen = fgen = main.rnd.Next(int.MinValue, int.MaxValue);
             btime = main.step;
 
-            var nykls = Enum.GetValues(typeof(gtype));
+            var nykls = Enum.GetValues(typeof(Gtype));
             for (int i = 0; i < DNA.Length; i++)
             {
-                DNA[i] = (gtype)nykls.GetValue(main.rnd.Next(1, nykls.Length));
+                DNA[i] = (Gtype)nykls.GetValue(main.rnd.Next(1, nykls.Length));
             }
             FDNA = DNA;
             Translation();
         }
 
-        public bot(int x, int y, float nrj, int gen, gtype[] DNA)
+        public Bot(int x, int y, float nrj, int gen, Gtype[] DNA)
         {
             this.x = x;
             this.y = y;
@@ -1055,7 +1051,7 @@ namespace GOB_Life
             Translation();
         }
 
-        public bot(int x, int y, float nrj, bot f)
+        public Bot(int x, int y, float nrj, Bot f)
         {
             this.x = x;
             this.y = y;
@@ -1070,13 +1066,13 @@ namespace GOB_Life
             fgen = f.fgen;
 
             bool m = main.rnd.Next(0, 100) < 5;
-            bool SorE = false;
+            bool SorE;
             if (m && main.rnd.Next(0, 100) < 6)
             {
                 SorE = main.rnd.Next(0, 100) < 50;
                 if (main.rnd.Next(0, 100) < 50)
                 {
-                    DNA = new gtype[f.DNA.Length + 1];
+                    DNA = new Gtype[f.DNA.Length + 1];
                     if (SorE)
                     {
                         Array.Copy(f.DNA, 0, DNA, 1, f.DNA.Length);
@@ -1087,7 +1083,7 @@ namespace GOB_Life
                 }
                 else
                 {
-                    DNA = new gtype[f.DNA.Length - 1];
+                    DNA = new Gtype[f.DNA.Length - 1];
                     if (SorE)
                     {
                         Array.Copy(f.DNA, 1, DNA, 0, DNA.Length);
@@ -1100,16 +1096,16 @@ namespace GOB_Life
             } //изменение длины днк
             else
             {
-                DNA = new gtype[f.DNA.Length];
+                DNA = new Gtype[f.DNA.Length];
                 Array.Copy(f.DNA, DNA, f.DNA.Length);
             }
 
-            var nykls = Enum.GetValues(typeof(gtype));
+            var nykls = Enum.GetValues(typeof(Gtype));
             for (int i = 0; i < DNA.Length; i++)
             {
                 if (m && main.rnd.Next(0, 100) < 3 || DNA[i] == 0)
                 {
-                    DNA[i] = (gtype)nykls.GetValue(main.rnd.Next(1, nykls.Length));
+                    DNA[i] = (Gtype)nykls.GetValue(main.rnd.Next(1, nykls.Length));
                     mut++;
                 }
             } //мутации
@@ -1126,35 +1122,38 @@ namespace GOB_Life
         }
 
         public int x, y, startsk;
-        int dx = 1, dy = 1, mut, rot, btime;
+        private int dx = 1;
+        private int dy = 1;
+        private readonly int mut;
+        private int rot;
+        private readonly int btime;
         public int gen, fgen;
         float nrj;
-        public List<gate> gates = new List<gate>();
-        public gtype[] DNA, FDNA;
-
-        static gtype[] coddons = { gtype.start, gtype.input, gtype.output, gtype.stop, gtype.skip, gtype.undo, gtype.empty }; //специальный кодоны
+        public List<Gate> gates = new List<Gate>();
+        public Gtype[] DNA, FDNA;
+        private static readonly Gtype[] coddons = { Gtype.start, Gtype.input, Gtype.output, Gtype.stop, Gtype.skip, Gtype.undo, Gtype.empty }; //специальный кодоны
 
         public void Translation()
         {
-            List<link> ins = new List<link>();
-            List<link> outs = new List<link>();
-            gtype wt = gtype.start;
+            List<Link> ins = new List<Link>();
+            List<Link> outs = new List<Link>();
+            Gtype wt = Gtype.start;
             int adr = -1; //адресc подключения
 
-            for (int i = 0; i < DNA.Length;i++)
+            for (int i = 0; i < DNA.Length; i++)
             {
                 if (coddons.Contains(DNA[i]))
                 {
                     switch (DNA[i])
                     {
-                        case gtype.stop:
+                        case Gtype.stop:
                             ins.Clear();
                             outs.Clear();
                             break;
-                        case gtype.skip:
+                        case Gtype.skip:
                             //adr--;
                             break;
-                        case gtype.undo:
+                        case Gtype.undo:
                             //adr++;
                             break;
                         default:
@@ -1164,7 +1163,7 @@ namespace GOB_Life
                     continue;
                 } //специальные кодоны
 
-                gate gate = new gate(DNA[i]);
+                Gate gate = new Gate(DNA[i]);
 
                 void VFill()
                 {
@@ -1172,22 +1171,22 @@ namespace GOB_Life
                     {
                         if (gate.input[j] != null)
                             continue;
-                        gate.input[j] = new link(null, gate);
+                        gate.input[j] = new Link(null, gate);
                         ins.Add(gate.input[j]);
                     }
                     for (int j = 0; j < gate.output.Length; j++)
                     {
                         if (gate.output[j] != null)
                             continue;
-                        gate.output[j] = new link(gate, null);
+                        gate.output[j] = new Link(gate, null);
                         outs.Add(gate.output[j]);
                     }
                 }
-                link link;
+                Link link;
 
                 switch (wt)
                 {
-                    case gtype.input: //подключение ко входу
+                    case Gtype.input: //подключение ко входу
                         if (gate.output.Length == 0 || ins.Count == 0)
                             continue;
                         int fiadr = adr - ins.Count * (int)Math.Floor(adr / (decimal)ins.Count);
@@ -1198,7 +1197,7 @@ namespace GOB_Life
 
                         ins.Remove(link);
                         break;
-                    case gtype.output: //подключение к выходу
+                    case Gtype.output: //подключение к выходу
                         if (gate.input.Length == 0 || outs.Count == 0)
                             continue;
                         int foadr = adr - outs.Count * (int)Math.Floor(adr / (decimal)outs.Count);
@@ -1225,7 +1224,7 @@ namespace GOB_Life
             if (nrj <= 0)
             {
                 main.cmap[x, y] = null;
-                main.fmap[x, y] = new food(x, y, 10);
+                main.fmap[x, y] = new Food(x, y, 10);
                 return;
             } //смерть
 
@@ -1233,76 +1232,76 @@ namespace GOB_Life
             {
                 switch (gate.type)
                 {
-                    case gtype.mut:
+                    case Gtype.mut:
                         gate.output[0].f = mut;
                         break;
-                    case gtype.fgen:
+                    case Gtype.fgen:
                         gate.output[0].f = fgen;
                         break;
-                    case gtype.gen:
+                    case Gtype.gen:
                         gate.output[0].f = gen;
                         break;
-                    case gtype.time:
+                    case Gtype.time:
                         gate.output[0].f = main.step;
                         break;
-                    case gtype.rand:
+                    case Gtype.rand:
                         gate.output[0].f = main.rnd.Next(0, 10);
                         break;
-                    case gtype.bot:
+                    case Gtype.bot:
                         gate.output[0].f = main.cmap[tx, ty] != null ? 1 : 0;
                         break;
-                    case gtype.rbot:
+                    case Gtype.rbot:
                         bool rb = false;
                         if (main.cmap[tx, ty] != null)
                             rb = gen == main.cmap[tx, ty].gen;
                         gate.output[0].f = rb ? 1 : 0;
                         break;
-                    case gtype.food:
+                    case Gtype.food:
                         gate.output[0].f = main.fmap[tx, ty] == null ? 0 : 1;
                         break;
-                    case gtype.nrj:
+                    case Gtype.nrj:
                         gate.output[0].f = nrj;
                         break;
-                    case gtype.posx:
+                    case Gtype.posx:
                         gate.output[0].f = x;
                         break;
-                    case gtype.posy:
+                    case Gtype.posy:
                         gate.output[0].f = y;
                         break;
-                    case gtype.btime:
+                    case Gtype.btime:
                         gate.output[0].f = btime;
                         break;
                 }
             } //обновление сенсоров
 
-            switch (main.think(this, out float signal))
+            switch (main.Think(this, out float signal))
             {
-                case gtype.photosyntes: //фотосинтез
+                case Gtype.photosyntes: //фотосинтез
                     nrj += 2;
                     break;
-                case gtype.rep: //размножение
+                case Gtype.rep: //размножение
                     if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
                     {
-                        main.cmap[tx, ty] = new bot(tx, ty, 5, this);
+                        main.cmap[tx, ty] = new Bot(tx, ty, 5, this);
                         main.bqueue.Add(main.cmap[tx, ty]);
                     }
                     break;
-                case gtype.Rrot: //поворот 1
+                case Gtype.Rrot: //поворот 1
                     rot = (rot + 1) % 8;
                     break;
-                case gtype.Lrot: //поворот 2
+                case Gtype.Lrot: //поворот 2
                     rot = (rot + 7) % 8;
                     break;
-                case gtype.walk: //ходьба
+                case Gtype.walk: //ходьба
                     if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
                     {
-                        main.cmap[tx, ty] = (bot)main.cmap[x, y].MemberwiseClone();
+                        main.cmap[tx, ty] = (Bot)main.cmap[x, y].MemberwiseClone();
                         main.cmap[x, y] = null;
                         x = tx;
                         y = ty;
                     }
                     break;
-                case gtype.atack: //атака
+                case Gtype.atack: //атака
                     if (main.cmap[tx, ty] != null)
                     {
                         float dnrj = main.cmap[tx, ty].nrj * 0.5F;
@@ -1315,8 +1314,8 @@ namespace GOB_Life
                         main.fmap[tx, ty] = null;
                     }
                     break;
-                case gtype.suicide: //суицид
-                    main.fmap[x, y] = new food(x, y, nrj);
+                case Gtype.suicide: //суицид
+                    main.fmap[x, y] = new Food(x, y, nrj);
                     main.cmap[x, y] = null;
                     return;
             }
