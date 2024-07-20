@@ -641,6 +641,9 @@ namespace GOB_Life
 
             RandomFill();
 
+            int prevCount = -1, grow = 0;
+            bool search = true;
+
             while (running)
             {
                 while (SDL_PollEvent(out SDL_Event e) == 1)
@@ -713,6 +716,7 @@ namespace GOB_Life
                             {
                                 case SDL_Keycode.SDLK_g:
                                     RandomFill();
+                                    search = true;
                                     break;
                                 case SDL_Keycode.SDLK_SPACE:
                                     playing = !playing;
@@ -743,6 +747,29 @@ namespace GOB_Life
 
                 if (playing)
                     main.Tick();
+
+                if (search)
+                {
+                    if (prevCount < main.queue.Count && main.step > 15 && playing)
+                        grow++;
+                    prevCount = main.queue.Count;
+
+                    if (main.step > 100)
+                    {
+                        if (grow > 7)
+                        {
+                            search = false;
+                            Console.Beep(500, 3000);
+                            grow = 0;
+                        }
+                        else
+                        {
+                            Console.Beep(2000, 100);
+                            grow = 0;
+                            RandomFill();
+                        }
+                    }
+                }
 
                 SDL_SetWindowTitle(win, main.step.ToString());
                 SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
@@ -938,8 +965,8 @@ namespace GOB_Life
 
     static class main
     {
-        public static readonly int winW = 600, winH = 600;
-        public static int width = 300, height = 300, cw = winW / width, ch = winH / height;
+        public static readonly int winW = 400, winH = 400;
+        public static int width = 400, height = 400, cw = winW / width, ch = winH / height;
         public static Bot[,] cmap = new Bot[width, height];
         public static Food[,] fmap = new Food[width, height];
 
@@ -1199,7 +1226,7 @@ namespace GOB_Life
 
             Mutation(Crossingover(p1.DNA, p2.DNA));
 
-            if (mut > 2)
+            if (mut / DNA.Length * 100 >= 10)
             {
                 gen = main.rnd.Next(int.MinValue, int.MaxValue);
                 mut = 0;
@@ -1238,12 +1265,13 @@ namespace GOB_Life
                         case Gtype.stop:
                             ins.Clear();
                             outs.Clear();
+                            adr = -1;
                             break;
                         case Gtype.skip:
-                            //adr--;
+                            adr--;
                             break;
                         case Gtype.undo:
-                            //adr++;
+                            adr++;
                             break;
                         default:
                             wt = DNA[i];
