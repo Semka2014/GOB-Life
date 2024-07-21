@@ -1,11 +1,211 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
-using static SDL2.SDL;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
-namespace GOB_Life
+namespace GOB_Life_Wpf
 {
+    public partial class MainWindow : Window
+    {
+        private DispatcherTimer timer;
+        private InfoWin infoWin;
+
+        public MainWindow()
+        {
+            InitializeComponent();
+            Visualize.LoadGradients();
+        }
+
+        public static void RenderImage(byte[] pixelData, int width, int height, Image targetImage)
+        {
+            var bitmap = BitmapSource.Create(
+                width, height, 96, 96,
+                PixelFormats.Bgra32, null,
+                pixelData, width * 4);
+
+            targetImage.Source = bitmap;
+        }
+
+
+        private void StartSimulation()
+        {
+            timer = new DispatcherTimer();
+            timer.Interval = TimeSpan.FromMilliseconds(0); // Интервал обновления
+            timer.Tick += Timer_Tick;
+            timer.Start();
+        }
+
+        private void Timer_Tick(object sender, EventArgs e)
+        {
+            Tick();
+        }
+
+        private void Tick()
+        {
+            main.Tick();
+            int w = (int)MapBorder.ActualWidth;
+            int h = (int)MapBorder.ActualHeight;
+            RenderImage(Visualize.Map(ref w, ref h, vizMode.SelectedIndex), w, h, MapBox);
+            simInfoText.Content = $"Шаг {main.step}, {main.queue.Count} клеток";
+        }
+
+        string generate = "";
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            if (int.TryParse(mapWidthInput.Text, out int w) && int.TryParse(mapHeightInput.Text, out int h))
+            {
+                main.width = w;
+                main.height = h;
+            }
+
+            if (generate == seedInput.Text)
+            {
+                generate = seedInput.Text = main.rnd.Next(int.MinValue, int.MaxValue).ToString(); ;
+            }
+            else
+            {
+                generate = "";
+            }
+
+            main.rnd = new Random(int.Parse(seedInput.Text));
+            main.RandomFill();
+            if (timer == null)
+            {
+                StartSimulation();
+            }
+        }
+
+        private void pause_Click(object sender, RoutedEventArgs e)
+        {
+            if (timer == null)
+                return;
+            timer.IsEnabled = !timer.IsEnabled;
+            pause.Content = timer.IsEnabled ? "| |" : "▶";
+        }
+
+        private void step_Click(object sender, RoutedEventArgs e)
+        {
+            if (timer == null)
+                return;
+            if (!timer.IsEnabled)
+                Tick();
+        }
+
+        // Вспомогательный метод для поиска дочернего элемента типа T
+        private T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T)
+                {
+                    return (T)child;
+                }
+                else
+                {
+                    var result = FindVisualChild<T>(child);
+                    if (result != null)
+                    {
+                        return result;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private void MapBox_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            // Получаем координаты мыши относительно MapBox
+            Point mousePositionInMapBox = e.GetPosition(MapBox);
+
+            // Получаем изображение
+            var image = MapBox as Image;
+
+            if (image != null && image.Source != null)
+            {
+                // Размеры изображения
+                double imageWidth = image.Source.Width;
+                double imageHeight = image.Source.Height;
+
+                // Размеры контейнера
+                double containerWidth = image.ActualWidth;
+                double containerHeight = image.ActualHeight;
+
+                // Вычисление масштабирования
+                double scaleX = containerWidth / imageWidth;
+                double scaleY = containerHeight / imageHeight;
+
+                // Преобразование координат
+                double relativeX = mousePositionInMapBox.X / scaleX;
+                double relativeY = mousePositionInMapBox.Y / scaleY;
+
+                int x = (int)Math.Round(relativeX / (imageWidth / main.width));
+                int y = (int)Math.Round(relativeY / (imageHeight / main.height));
+                switch (mouseAction.SelectedIndex)
+                {
+                    case 0:
+                        if (main.cmap[x, y] != null)
+                        {
+                            infoWin = new InfoWin();
+                            infoWin.Show();
+                            infoWin.Activate();
+
+                            RenderImage(Visualize.Brain(main.cmap[x, y], out int w, out int h), w, h, infoWin.BrainBox);
+
+                            StringBuilder dna = new StringBuilder();
+                            bool first = true;
+                            foreach (var n in main.cmap[x, y].DNA)
+                            {
+                                if (!first)
+                                    dna.Append(" ");
+                                dna.Append(n.ToString());
+                                first = false;
+                            }
+                            infoWin.dnaText.Text = dna.ToString();
+                        }
+                        break; //осмотреть бота
+                    case 1:
+                        if (main.cmap[x, y] != null)
+                            main.cmap[x, y].nrj = 0;
+                        break; //убить бота
+                    case 2:
+                        if (main.cmap[x, y] == null && main.fmap[x, y] == null)
+                            main.fmap[x, y] = new Food(x, y, 10);
+                        break; //создать еду
+                    case 3:
+                        main.queue.Remove(main.cmap[x, y]);
+                        main.bqueue.Remove(main.cmap[x, y]);
+                        main.cmap[x, y] = null;
+                        main.fmap[x, y] = null;
+                        break; //очистить клетку
+                    case 4:
+                        if (main.cmap[x, y] == null && main.fmap[x, y] == null)
+                        {
+                            string[] tdna = Clipboard.GetText().Split();
+                            Gtype[] Idna = new Gtype[tdna.Length];
+                            for (int i = 0; i < Idna.Length; i++)
+                            {
+                                if (!Enum.TryParse(tdna[i], out Idna[i]))
+                                    return;
+                            }
+                            main.queue.Add(new Bot(x, y, 10, main.rnd.Next(int.MinValue, int.MaxValue), Idna));
+                            main.cmap[x, y] = main.queue.Last();
+                        }
+                        break; //вставить бота
+                }
+            }
+        }
+    }
+
     enum Gtype
     {
         empty,
@@ -65,6 +265,221 @@ namespace GOB_Life
 
     static class Visualize
     {
+        static byte[][,] gradients;
+        public class CustomImage
+        {
+            private readonly byte[] pixels;
+            private readonly int width;
+            private readonly int height;
+
+            public CustomImage(int width, int height)
+            {
+                this.width = width;
+                this.height = height;
+                this.pixels = new byte[width * height * 4];
+            }
+
+            public byte[] Pixels => pixels;
+
+            public void ClearImage(Color color)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        int index = (y * width + x) * 4;
+                        pixels[index] = color.B;
+                        pixels[index + 1] = color.G;
+                        pixels[index + 2] = color.R;
+                        pixels[index + 3] = color.A;
+                    }
+                }
+            }
+
+            public void DrawText(string text, int x, int y, Color color, int fontSize = 16)
+            {
+                var formattedText = new FormattedText(
+                    text,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight,
+                    new Typeface("Arial"),
+                    fontSize,
+                    new SolidColorBrush(color),
+                    1.0);
+
+                var drawingVisual = new DrawingVisual();
+                using (var drawingContext = drawingVisual.RenderOpen())
+                {
+                    drawingContext.DrawText(formattedText, new Point(x, y));
+                }
+
+                var renderTarget = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+                renderTarget.Render(drawingVisual);
+
+                var renderPixels = new byte[width * height * 4];
+                renderTarget.CopyPixels(renderPixels, width * 4, 0);
+
+                // Наложение новых пикселей на старые
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    byte alpha = renderPixels[i + 3];
+                    if (alpha > 0)
+                    {
+                        pixels[i] = renderPixels[i];
+                        pixels[i + 1] = renderPixels[i + 1];
+                        pixels[i + 2] = renderPixels[i + 2];
+                        pixels[i + 3] = renderPixels[i + 3];
+                    }
+                }
+            }
+
+            public void DrawCenteredText(string text, int rectX, int rectY, int rectWidth, int rectHeight, Color color, int fontSize = 16)
+            {
+                var formattedText = new FormattedText(
+                    text,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight,
+                    new Typeface("Arial"),
+                    fontSize,
+                    new SolidColorBrush(color),
+                    1.0);
+
+                double centerX = rectX + rectWidth / 2.0;
+                double centerY = rectY + rectHeight / 2.0;
+
+                double textX = centerX - (formattedText.Width / 2.0);
+                double textY = centerY - (formattedText.Height / 2.0);
+
+                DrawText(text, (int)textX, (int)textY, color, fontSize);
+            }
+
+            public void DrawLine(int x1, int y1, int x2, int y2, Color color)
+            {
+                var pen = new Pen(new SolidColorBrush(color), 1);
+                var drawingVisual = new DrawingVisual();
+                using (var drawingContext = drawingVisual.RenderOpen())
+                {
+                    drawingContext.DrawLine(pen, new Point(x1, y1), new Point(x2, y2));
+                }
+
+                var renderTarget = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+                renderTarget.Render(drawingVisual);
+
+                var renderPixels = new byte[width * height * 4];
+                renderTarget.CopyPixels(renderPixels, width * 4, 0);
+
+                // Наложение новых пикселей на старые
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    byte alpha = renderPixels[i + 3];
+                    if (alpha > 0)
+                    {
+                        pixels[i] = renderPixels[i];
+                        pixels[i + 1] = renderPixels[i + 1];
+                        pixels[i + 2] = renderPixels[i + 2];
+                        pixels[i + 3] = renderPixels[i + 3];
+                    }
+                }
+            }
+
+            public void DrawRectangle(int x, int y, int rectWidth, int rectHeight, Color color, bool fill = false)
+            {
+                if (fill)
+                {
+                    for (int i = y; i < y + rectHeight; i++)
+                    {
+                        for (int j = x; j < x + rectWidth; j++)
+                        {
+                            if (i >= 0 && i < height && j >= 0 && j < width)
+                            {
+                                int index = (i * width + j) * 4;
+                                pixels[index] = color.B;
+                                pixels[index + 1] = color.G;
+                                pixels[index + 2] = color.R;
+                                pixels[index + 3] = color.A;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    DrawLine(x, y, x + rectWidth - 1, y, color);
+                    DrawLine(x + rectWidth - 1, y, x + rectWidth - 1, y + rectHeight - 1, color);
+                    DrawLine(x + rectWidth - 1, y + rectHeight - 1, x, y + rectHeight - 1, color);
+                    DrawLine(x, y + rectHeight - 1, x, y, color);
+                }
+            }
+
+            public BitmapSource ToBitmapSource()
+            {
+                return BitmapSource.Create(
+                    width, height, 96, 96,
+                    PixelFormats.Bgra32, null,
+                    pixels, width * 4);
+            }
+        }
+
+        private static void ColorFromGradient(double val, double min, double max, int gradient, out byte a, out byte r, out byte g, out byte b)
+        {
+            double Map(double value, double fromLow, double fromHigh, double toLow, double toHigh)
+            {
+                return toLow + (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow);
+            }
+            int x = (int)Math.Round(Map(val, min, max, 0, gradients[gradient].Length));
+            if (x >= gradients[gradient].GetLength(0))
+                x = gradients[gradient].GetLength(0) - 1;
+            if (x < 0)
+                x = 0;
+
+            a = gradients[gradient][x, 0];
+            r = gradients[gradient][x, 1];
+            g = gradients[gradient][x, 2];
+            b = gradients[gradient][x, 3];
+        }
+
+        public static void LoadGradients()
+        {
+            string[] images = Directory.GetFiles("Images/Gradients");
+            gradients = new byte[images.Length][,];
+            for (int i = 0; i < gradients.Length; i++)
+            {
+                System.Drawing.Bitmap bmp = new System.Drawing.Bitmap(images[i]);
+                gradients[i] = new byte[bmp.Width, 4];
+                for (int x = 0; x < bmp.Width; x++) 
+                {
+                    System.Drawing.Color c = bmp.GetPixel(x, 0);
+                    gradients[i][x, 0] = c.A;
+                    gradients[i][x, 1] = c.R;
+                    gradients[i][x, 2] = c.G;
+                    gradients[i][x, 3] = c.B;
+                }
+            }
+        }
+
+        static void GenToColor(int seed, out byte red, out byte green, out byte blue)
+        {
+            bool IsGrayShade(int r, int g, int b)
+            {
+                // Определяем пороговое значение для различия между каналами
+                int threshold = 20; // Порог можно настраивать
+
+                // Проверяем, находятся ли значения каналов в пределах порогового значения друг от друга
+                return Math.Abs(r - g) <= threshold &&
+                       Math.Abs(r - b) <= threshold &&
+                       Math.Abs(g - b) <= threshold;
+            }
+
+            Random random = new Random(seed);
+            do
+            {
+                red = (byte)random.Next(256);
+                green = (byte)random.Next(256);
+                blue = (byte)random.Next(256);
+            } while (IsGrayShade(red, green, blue));
+
+            return;
+        }
+
         static string GtypeToSrt(Gtype type)
         {
             string caption;
@@ -217,159 +632,6 @@ namespace GOB_Life
             }
             return caption;
         }
-        static void DisplayText(int cx, int cy, int size, int interval, string display)
-        {
-            void Interp(string cmds, int pos)
-            {
-                int s = pos * interval * size;
-
-                int[] cords = Array.ConvertAll(cmds.ToCharArray(), x => int.Parse(x.ToString()) * size);
-                for (int i = 2; i < cords.Length; i += 2)
-                {
-                    SDL_RenderDrawLine(vren, cords[i - 2] + s + cx, cords[i - 1] + cy, cords[i] + s + cx, cords[i + 1] + cy);
-                }
-            }
-
-            string text = display;
-            for (int i = 0; i < text.Length; i++)
-            {
-                switch (text[i])
-                {
-                    case '0':
-                        Interp("0004242000", i);
-                        break;
-                    case '1':
-                        Interp("141001", i);
-                        break;
-                    case '2':
-                        Interp("011021220424", i);
-                        break;
-                    case '3':
-                        Interp("001021120212231404", i);
-                        break;
-                    case '4':
-                        Interp("0002222420", i);
-                        break;
-                    case '5':
-                        Interp("20000112222404", i);
-                        break;
-                    case '6':
-                        Interp("200004242202", i);
-                        break;
-                    case '7':
-                        Interp("0020211214", i);
-                        break;
-                    case '8':
-                        Interp("002021030424230100", i);
-                        break;
-                    case '9':
-                        Interp("042420000222", i);
-                        break;
-                    case 'a':
-                        Interp("04011021242202", i);
-                        break;
-                    case 'b':
-                        Interp("00102112021223140400", i);
-                        break;
-                    case 'c':
-                        Interp("20000424", i);
-                        break;
-                    case 'd':
-                        Interp("00041423211000", i);
-                        break;
-                    case 'e':
-                        Interp("20000222020424", i);
-                        break;
-                    case 'f':
-                        Interp("040222020020", i);
-                        break;
-                    case 'g':
-                        Interp("200004242212", i);
-                        break;
-                    case 'h':
-                        Interp("000402222024", i);
-                        break;
-                    case 'i':
-                        Interp("002010140424", i);
-                        break;
-                    case 'j':
-                        Interp("002010140403", i);
-                        break;
-                    case 'k':
-                        Interp("00040212201224", i);
-                        break;
-                    case 'l':
-                        Interp("000424", i);
-                        break;
-                    case 'm':
-                        Interp("0400122024", i);
-                        break;
-                    case 'n':
-                        Interp("04002420", i);
-                        break;
-                    case 'o':
-                        Interp("0004242000", i);
-                        break;
-                    case 'p':
-                        Interp("040010211202", i);
-                        break;
-                    case 'q':
-                        Interp("242010011222", i);
-                        break;
-                    case 'r':
-                        Interp("040010211202122324", i);
-                        break;
-                    case 's':
-                        Interp("211001231403", i);
-                        break;
-                    case 't':
-                        Interp("14100020", i);
-                        break;
-                    case 'u':
-                        Interp("00042420", i);
-                        break;
-                    case 'v':
-                        Interp("001420", i);
-                        break;
-                    case 'w':
-                        Interp("0004122420", i);
-                        break;
-                    case 'x':
-                        Interp("0024122004", i);
-                        break;
-                    case 'y':
-                        Interp("04201200", i);
-                        break;
-                    case 'z':
-                        Interp("00200424", i);
-                        break;
-                    case '*':
-                        Interp("1113120222122301122103", i);
-                        break;
-                    case '+':
-                        Interp("1113120222", i);
-                        break;
-                    case '-':
-                        Interp("0222", i);
-                        break;
-                    case '=':
-                        Interp("01210323", i);
-                        break;
-                    case '/':
-                        Interp("2103", i);
-                        break;
-                    case '>':
-                        Interp("012203", i);
-                        break;
-                    case '<':
-                        Interp("210223", i);
-                        break;
-                    default:
-                        break;
-                }
-            }
-            return;
-        }
 
         static public IntPtr vren;
         private static readonly List<(Gate, Node)> queue = new List<(Gate, Node)>();
@@ -425,12 +687,13 @@ namespace GOB_Life
             }
         }
 
-        public static void Brain(Bot e)
+        public static byte[] Brain(Bot e, out int w, out int h)
         {
+            w = 0; h = 0;
             int layer = 0;
             queue.Clear();
             edges.Clear();
-            int x = 10, y = 0;
+            int x = 20, y = 0;
             bool mem = true; //запомнить гейт
             (Gate, Node) flg = (null, null); //запомненый гейт
 
@@ -439,7 +702,7 @@ namespace GOB_Life
                 if (main.exp.Contains(gate.type) && gate.input[0].A != null)
                 {
                     var node = new Node(gate, x, y, layer);
-                    y += node.h + 5;
+                    y += node.h + 10;
                     queue.Add((gate, node));
                     if (mem)
                     {
@@ -456,32 +719,11 @@ namespace GOB_Life
 
                 if (flg == queue[i]) //начинается новый слой
                 {
-                    //сдвигаем все ноды по центру
-                    SDL_GetWindowSize(Program.vwin, out _, out int wy);
-                    int dy = (wy - y) / 2;
-                    foreach (var gt in queue)
-                    {
-                        if (gt.Item2.layer != layer)
-                            continue;
-                        Node nod = gt.Item2;
-                        nod.y += dy;
-                        for (int ii = 0; ii < nod.input.Length; ii++)
-                            nod.input[ii].Item2 += dy;
-                        for (int ii = 0; ii < nod.output.Length; ii++)
-                            nod.output[ii].Item2 += dy;
-                    }
-                    foreach (var ed in edges)
-                    {
-                        if (ed.layer != layer)
-                            continue;
-                        ed.y2 += dy;
-                    }
-
                     layer++;
                     mem = true;
+                    w = x;
                     x += 80;
                     y = 0;
-
                 }
 
                 for (int j = 0; j < gate1.input.Length; j++)
@@ -503,6 +745,9 @@ namespace GOB_Life
 
                                 var node2 = new Node(gate2, x, y, layer);
                                 y += node2.h == 0 ? 15 : node2.h + 5;
+                                if (y > h)
+                                    h = y;
+
                                 int x1 = node.input[j].Item1;
                                 int y1 = node.input[j].Item2;
                                 int x2 = node2.output[l].Item1;
@@ -525,274 +770,125 @@ namespace GOB_Life
                 }
             }
 
+            w += 60;
+            h += 60;
+            int ldy = 0;
+
+            //сдвигаем все ноды по центру
+            for (int l = 0; l < layer; l++)
+            {
+                int maxy = 0;
+
+                foreach (var gt in queue)
+                {
+                    if (gt.Item2.layer == l && maxy < gt.Item2.y)
+                        maxy = gt.Item2.y;
+                }
+
+                int dy = (h - maxy) / 2;
+                foreach (var gt in queue)
+                {
+                    if (gt.Item2.layer != l)
+                        continue;
+                    Node nod = gt.Item2;
+                    nod.y += dy;
+                    for (int ii = 0; ii < nod.input.Length; ii++)
+                        nod.input[ii].Item2 += dy;
+                    for (int ii = 0; ii < nod.output.Length; ii++)
+                        nod.output[ii].Item2 += dy;
+                }
+                foreach (var ed in edges)
+                {
+                    if (ed.layer != l)
+                        continue;
+                    ed.y1 += ldy;
+                    ed.y2 += dy;
+                }
+                ldy = dy;
+            }
+
+            CustomImage img = new CustomImage(w, h);
+
             //отрисовываем ноды и линии
-            SDL_SetRenderDrawColor(vren, 200, 200, 200, 255);
-            SDL_RenderClear(vren);
-            SDL_SetRenderDrawColor(vren, 0, 0, 0, 255);
+            img.ClearImage(Color.FromArgb(255, 200, 200, 200));
+
             foreach (var en in queue)
             {
                 Node node = en.Item2;
                 string caption = GtypeToSrt(node.g.type);
 
-                var rect = new SDL_Rect
-                {
-                    x = node.x,
-                    y = node.y,
-                    h = node.h,
-                    w = node.w,
-                };
-                SDL_RenderDrawRect(vren, ref rect);
+                img.DrawRectangle(node.x, node.y, node.w, node.h, Color.FromArgb(255, 0, 0, 0));
 
                 //сокращения названий гейтов
-                int tw = 2 * caption.Length + 4 * 2 * (caption.Length - 1);
-                DisplayText(rect.x + (rect.w - tw) / 2, rect.y + (rect.h - 10) / 2, 2, 4, caption);
+                img.DrawCenteredText(caption, node.x, node.y, node.w, node.h, Color.FromArgb(255, 0, 0, 0), 16);
             }
             foreach (var edge in edges)
             {
-                SDL_RenderDrawLine(vren, edge.x1, edge.y1, edge.x2, edge.y2);
+                img.DrawLine(edge.x1, edge.y1, edge.x2, edge.y2, Color.FromArgb(255, 0, 0, 0));
             }
+
+            return img.Pixels;
         }
 
         public static void Dna(Bot e)
         {
-            SDL_SetRenderDrawColor(vren, 0, 0, 0, 255);
-            SDL_GetWindowSize(Program.vwin, out int w, out int h);
-            int cw = w / e.DNA.Length;
+            
+        }
 
-            for (int i = 0; i < Math.Max(e.FDNA.Length, e.DNA.Length); i++)
+        public static byte[] Map(ref int w, ref int h, int vizMode)
+        {
+            int c = Math.Min(w / main.width, h / main.height);
+            w = c * main.width;
+            h = c * main.height;
+
+            CustomImage img = new CustomImage(w, h);
+
+            img.ClearImage(Color.FromArgb(255, 0, 0, 0)); // Clear with black background
+
+            foreach (Bot bot in main.queue)
             {
+                byte a, r, g, b;
                 
-            }
-        }
-    }
-    internal class Program
-    {
-        //функции для генерации не серого цвета
-        static void GenToColor(int seed, out byte red, out byte green, out byte blue)
-        {
-            bool IsGrayShade(int r, int g, int b)
-            {
-                // Определяем пороговое значение для различия между каналами
-                int threshold = 20; // Порог можно настраивать
+                int botX = bot.x * c;
+                int botY = bot.y * c;
 
-                // Проверяем, находятся ли значения каналов в пределах порогового значения друг от друга
-                return Math.Abs(r - g) <= threshold &&
-                       Math.Abs(r - b) <= threshold &&
-                       Math.Abs(g - b) <= threshold;
-            }
-
-            Random random = new Random(seed);
-            do
-            {
-                red = (byte)random.Next(256);
-                green = (byte)random.Next(256);
-                blue = (byte)random.Next(256);
-            } while (IsGrayShade(red, green, blue));
-
-            return;
-        }
-
-        static void RandomFill()
-        {
-            main.step = 0;
-            main.cmap = new Bot[main.width, main.height];
-            main.fmap = new Food[main.width, main.height];
-            main.queue.Clear();
-
-            for (int x = 0; x < main.width; x++)
-            {
-                for (int y = 0; y < main.height; y++)
+                switch (vizMode)
                 {
-                    if (main.rnd.Next(0, 100) < 50)
-                    {
-                        main.cmap[x, y] = new Bot(x, y, 10);
-                        main.queue.Add(main.cmap[x, y]);
-                    }
-                    else if (main.rnd.Next(0, 100) < 50)
-                        main.fmap[x, y] = new Food(x, y, 10);
+                    case 0:
+                        a = 255;
+                        GenToColor(bot.gen, out r, out g, out b);
+                        break;
+                    case 1:
+                        ColorFromGradient(bot.nrj, 0, 1000, 1, out a, out r, out g, out b);
+                        break;
+                    case 2:
+                        ColorFromGradient(bot.predation, 0, 1, 2, out a, out r, out g, out b);
+                        break;
+                    case 3:
+                        ColorFromGradient(main.step - bot.btime, 0, 10000, 0, out a, out r, out g, out b);
+                        break;
+                    case 4:
+                        a = 255;
+                        GenToColor(bot.fgen, out r, out g, out b);
+                        break;
+                    default:
+                        a = r = g = b = 0;
+                        break;
                 }
+
+                img.DrawRectangle(botX, botY, c, c, Color.FromArgb(a, r, g, b), true);
             }
 
-            /*
-            gtype[] bestDNA = new gtype[] { gtype.start, gtype.dup2, gtype.output, gtype.atack, gtype.not, gtype.walk, gtype.input, gtype.or, gtype.bot, gtype.food, gtype.stop, gtype.start, gtype.and, gtype.output, gtype.rep, gtype.input, gtype.not, gtype.or, gtype.bot, gtype.food, gtype.equal, gtype.c0, gtype.mod, gtype.c2, gtype.time, gtype.stop, gtype.start, gtype.Lrot, gtype.input, gtype.rbot, gtype.stop, gtype.start, gtype.photosyntes, gtype.input, gtype.less, gtype.c5, gtype.nrj, gtype.stop, gtype.start, gtype.suicide, gtype.input, gtype.grate, gtype.mul, gtype.c11, gtype.mul, gtype.c11, gtype.c2, gtype.time, gtype.stop };
-            main.cmap[30, 30] = new bot(30, 30, 10, 0, bestDNA);
-            main.queue.Add(main.cmap[30, 30]);
-
-            /*
-            main.cmap[70, 50] = new bot(70, 50, 10, 666, new gtype[] { gtype.start, gtype.nrj, gtype.rep, gtype.dup3, gtype.input, gtype.and, gtype.posx, gtype.dup2, gtype.xor, gtype.input, gtype.Rrot, gtype.bot, gtype.walk, gtype.less, gtype.output, gtype.skip, gtype.Lrot, gtype.or, gtype.bot, gtype.rbot, gtype.bot, gtype.photosyntes, gtype.food, gtype.c2, gtype.start, gtype.grate, gtype.food, gtype.mod, gtype.div, gtype.div, gtype.walk, gtype.atack, gtype.undo, gtype.grate, gtype.atack, gtype.photosyntes, gtype.atack, gtype.photosyntes, gtype.grate, gtype.wait, gtype.rbot, gtype.undo, gtype.or, gtype.output, gtype.c1, gtype.rep, gtype.undo, gtype.rand, gtype.btime, gtype.atack, gtype.c2, gtype.rep, gtype.div, gtype.walk, gtype.rbot, gtype.equal, gtype.btime, gtype.Lrot, gtype.dup3, gtype.walk, gtype.Rrot, gtype.mod, gtype.grate, gtype.div, gtype.c11, gtype.c2, gtype.less, gtype.rbot, gtype.not, gtype.memory, gtype.bot, gtype.output, gtype.add, gtype.atack, gtype.dup2, gtype.xor, gtype.not, gtype.time, gtype.stop, gtype.grate, gtype.undo, gtype.undo, gtype.walk, gtype.memory, gtype.equal, gtype.or, gtype.food, gtype.equal, gtype.stop, gtype.time, gtype.wait, gtype.stop, gtype.grate, gtype.xor, gtype.c2, gtype.less, gtype.suicide, gtype.sub, gtype.output, gtype.c11, gtype.and, gtype.time, gtype.div, gtype.sub, gtype.equal, gtype.atack, gtype.food, gtype.and, gtype.time, gtype.Rrot, gtype.c5, gtype.dup3, gtype.Rrot, gtype.div, gtype.posy, gtype.grate, gtype.btime, gtype.c0, gtype.c2, gtype.rbot, gtype.not, gtype.output, gtype.time, gtype.Rrot, gtype.nrj, gtype.btime, gtype.walk, gtype.photosyntes, gtype.c1, gtype.start, gtype.time, gtype.undo, gtype.dup2, gtype.stop, gtype.suicide, gtype.rbot, gtype.c5, gtype.nrj, gtype.input, gtype.dup2, gtype.Rrot, gtype.grate, gtype.photosyntes, gtype.less, gtype.bot, gtype.div, gtype.less, gtype.stop, gtype.photosyntes, gtype.less, gtype.rep, gtype.rbot, gtype.add, gtype.rand, gtype.posy, gtype.equal, gtype.c11, gtype.and, gtype.btime, gtype.rep });
-            main.queue.Add(main.cmap[70, 50]);
-            */
-        }
-
-        public static IntPtr vwin = SDL_CreateWindow("321", main.winW + 30, 30, main.winW, main.winH, SDL_WindowFlags.SDL_WINDOW_BORDERLESS);
-        static void Main()
-        {
-            var win = SDL_CreateWindow("123", 30, 30, main.winW, main.winH, SDL_WindowFlags.SDL_WINDOW_BORDERLESS);
-            var ren = SDL_CreateRenderer(win, 0, SDL_RendererFlags.SDL_RENDERER_SOFTWARE);
-
-            Visualize.vren = SDL_CreateRenderer(vwin, 1, SDL_RendererFlags.SDL_RENDERER_SOFTWARE);
-
-            SDL_SetRenderDrawColor(Visualize.vren, 200, 200, 200, 255);
-            SDL_RenderClear(Visualize.vren);
-            SDL_RenderPresent(Visualize.vren);
-
-            bool running = true;
-            bool playing = true;
-
-            RandomFill();
-
-            int prevCount = -1, grow = 0;
-            bool search = true;
-
-            while (running)
+            foreach (Food f in main.fmap)
             {
-                while (SDL_PollEvent(out SDL_Event e) == 1)
-                {
-                    switch (e.type)
-                    {
-                        case SDL_EventType.SDL_QUIT:
-                            running = false;
-                            break;
-                        case SDL_EventType.SDL_MOUSEBUTTONUP:
-
-                            int x, y;
-                            SDL_GetMouseState(out x, out y);
-                            x /= main.cw;
-                            y /= main.ch;
-
-                            if (e.window.windowID == 2)
-                            {
-                                Bot b = main.cmap[x, y];
-
-                                switch (e.button.button)
-                                {
-                                    case (byte)SDL_BUTTON_LEFT:
-                                        if (b != null)
-                                        {
-                                            Visualize.Brain(b);
-                                            Visualize.Dna(b);
-                                            SDL_RenderPresent(Visualize.vren);
-                                        }
-                                        break;
-                                    case (byte)SDL_BUTTON_RIGHT:
-                                        if (b == null)
-                                            break;
-                                        StringBuilder dna = new StringBuilder();
-                                        bool first = true;
-                                        foreach (var n in b.DNA)
-                                        {
-                                            if (!first)
-                                                dna.Append(" ");
-                                            dna.Append(n.ToString());
-                                            first = false;
-                                        }
-                                        SDL_SetClipboardText(dna.ToString());
-                                        break;
-                                    case (byte)SDL_BUTTON_MIDDLE:
-                                        if (b != null || main.fmap[x, y] != null)
-                                            break;
-
-                                        try
-                                        {
-                                            string[] tdna = SDL_GetClipboardText().Split();
-                                            Gtype[] Idna = new Gtype[tdna.Length];
-                                            for (int i = 0; i < Idna.Length; i++)
-                                            {
-                                                Idna[i] = (Gtype)Enum.Parse(typeof(Gtype), tdna[i]);
-                                            }
-                                            main.queue.Add(new Bot(x, y, 10, main.rnd.Next(int.MinValue, int.MaxValue), Idna));
-                                            main.cmap[x, y] = main.queue.Last();
-                                        }
-                                        catch { };
-                                        break;
-                                }
-
-                            }
-                            break; //отображение мозга (сделать отображение днк)
-                        case SDL_EventType.SDL_KEYUP:
-                            int wx, wy;
-                            SDL_GetWindowSize(vwin, out wx, out wy);
-                            switch (e.key.keysym.sym)
-                            {
-                                case SDL_Keycode.SDLK_g:
-                                    RandomFill();
-                                    search = true;
-                                    break;
-                                case SDL_Keycode.SDLK_SPACE:
-                                    playing = !playing;
-                                    break;
-                                case SDL_Keycode.SDLK_ESCAPE:
-                                    running = false;
-                                    break;
-                                case SDL_Keycode.SDLK_LEFT:
-                                    SDL_SetWindowSize(vwin, wx - 10, wy);
-                                    break;
-                                case SDL_Keycode.SDLK_UP:
-                                    SDL_SetWindowSize(vwin, wx, wy - 10);
-                                    break;
-                                case SDL_Keycode.SDLK_RIGHT: //->
-                                    SDL_SetWindowSize(vwin, wx + 10, wy);
-                                    break;
-                                case SDL_Keycode.SDLK_DOWN: // \/
-                                    SDL_SetWindowSize(vwin, wx, wy + 10);
-                                    break;
-                                case SDL_Keycode.SDLK_RCTRL:
-                                    SDL_SetWindowSize(vwin, 500, 500);
-                                    break;
-                            }
-                            break;
-
-                    }
-                }
-
-                if (playing)
-                    main.Tick();
-
-                if (search)
-                {
-                    if (prevCount < main.queue.Count && main.step > 15 && playing)
-                        grow++;
-                    prevCount = main.queue.Count;
-
-                    if (main.step > 100)
-                    {
-                        if (grow > 7)
-                        {
-                            search = false;
-                            Console.Beep(500, 3000);
-                            grow = 0;
-                        }
-                        else
-                        {
-                            Console.Beep(2000, 100);
-                            grow = 0;
-                            RandomFill();
-                        }
-                    }
-                }
-
-                SDL_SetWindowTitle(win, main.step.ToString());
-                SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
-                SDL_RenderClear(ren);
-                foreach (Bot bot in main.queue)
-                {
-                    var rect = new SDL_Rect { x = bot.x * main.cw, y = bot.y * main.ch, w = main.cw, h = main.ch };
-
-                    GenToColor(bot.gen, out byte r, out byte g, out byte b);
-
-                    SDL_SetRenderDrawColor(ren, r, g, b, 255);
-                    SDL_RenderFillRect(ren, ref rect);
-                }
-                SDL_SetRenderDrawColor(ren, 50, 50, 50, 255);
-                foreach (Food f in main.fmap)
-                {
-                    if (f == null)
-                        continue;
-                    var rect = new SDL_Rect { x = f.x * main.cw, y = f.y * main.ch, w = main.cw, h = main.ch };
-                    SDL_RenderFillRect(ren, ref rect);
-                }
-                SDL_RenderPresent(ren);
+                if (f == null)
+                    continue;
+                int foodX = f.x * c;
+                int foodY = f.y * c;
+                img.DrawRectangle(foodX, foodY, c, c, Color.FromArgb(255, 50, 50, 50), true);
             }
+
+            return img.Pixels;
         }
 
     }
@@ -965,8 +1061,7 @@ namespace GOB_Life
 
     static class main
     {
-        public static readonly int winW = 400, winH = 400;
-        public static int width = 400, height = 400, cw = winW / width, ch = winH / height;
+        public static int width = 350, height = 200;
         public static Bot[,] cmap = new Bot[width, height];
         public static Food[,] fmap = new Food[width, height];
 
@@ -976,6 +1071,38 @@ namespace GOB_Life
         public static Random rnd = new Random();
         public static int step;
         public static Gtype[] exp = { Gtype.wait, Gtype.photosyntes, Gtype.rep, Gtype.sex, Gtype.Rrot, Gtype.Lrot, Gtype.walk, Gtype.atack, Gtype.suicide };
+
+        public static void RandomFill()
+        {
+            step = 0;
+            cmap = new Bot[width, height];
+            fmap = new Food[width, height];
+            queue.Clear();
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    if (rnd.Next(0, 100) < 50)
+                    {
+                        cmap[x, y] = new Bot(x, y, 10);
+                        queue.Add(cmap[x, y]);
+                    }
+                    else if (rnd.Next(0, 100) < 50)
+                        fmap[x, y] = new Food(x, y, 10);
+                }
+            }
+
+            /*
+            gtype[] bestDNA = new gtype[] { gtype.start, gtype.dup2, gtype.output, gtype.atack, gtype.not, gtype.walk, gtype.input, gtype.or, gtype.bot, gtype.food, gtype.stop, gtype.start, gtype.and, gtype.output, gtype.rep, gtype.input, gtype.not, gtype.or, gtype.bot, gtype.food, gtype.equal, gtype.c0, gtype.mod, gtype.c2, gtype.time, gtype.stop, gtype.start, gtype.Lrot, gtype.input, gtype.rbot, gtype.stop, gtype.start, gtype.photosyntes, gtype.input, gtype.less, gtype.c5, gtype.nrj, gtype.stop, gtype.start, gtype.suicide, gtype.input, gtype.grate, gtype.mul, gtype.c11, gtype.mul, gtype.c11, gtype.c2, gtype.time, gtype.stop };
+            main.cmap[30, 30] = new bot(30, 30, 10, 0, bestDNA);
+            main.queue.Add(main.cmap[30, 30]);
+
+            /*
+            main.cmap[70, 50] = new bot(70, 50, 10, 666, new gtype[] { gtype.start, gtype.nrj, gtype.rep, gtype.dup3, gtype.input, gtype.and, gtype.posx, gtype.dup2, gtype.xor, gtype.input, gtype.Rrot, gtype.bot, gtype.walk, gtype.less, gtype.output, gtype.skip, gtype.Lrot, gtype.or, gtype.bot, gtype.rbot, gtype.bot, gtype.photosyntes, gtype.food, gtype.c2, gtype.start, gtype.grate, gtype.food, gtype.mod, gtype.div, gtype.div, gtype.walk, gtype.atack, gtype.undo, gtype.grate, gtype.atack, gtype.photosyntes, gtype.atack, gtype.photosyntes, gtype.grate, gtype.wait, gtype.rbot, gtype.undo, gtype.or, gtype.output, gtype.c1, gtype.rep, gtype.undo, gtype.rand, gtype.btime, gtype.atack, gtype.c2, gtype.rep, gtype.div, gtype.walk, gtype.rbot, gtype.equal, gtype.btime, gtype.Lrot, gtype.dup3, gtype.walk, gtype.Rrot, gtype.mod, gtype.grate, gtype.div, gtype.c11, gtype.c2, gtype.less, gtype.rbot, gtype.not, gtype.memory, gtype.bot, gtype.output, gtype.add, gtype.atack, gtype.dup2, gtype.xor, gtype.not, gtype.time, gtype.stop, gtype.grate, gtype.undo, gtype.undo, gtype.walk, gtype.memory, gtype.equal, gtype.or, gtype.food, gtype.equal, gtype.stop, gtype.time, gtype.wait, gtype.stop, gtype.grate, gtype.xor, gtype.c2, gtype.less, gtype.suicide, gtype.sub, gtype.output, gtype.c11, gtype.and, gtype.time, gtype.div, gtype.sub, gtype.equal, gtype.atack, gtype.food, gtype.and, gtype.time, gtype.Rrot, gtype.c5, gtype.dup3, gtype.Rrot, gtype.div, gtype.posy, gtype.grate, gtype.btime, gtype.c0, gtype.c2, gtype.rbot, gtype.not, gtype.output, gtype.time, gtype.Rrot, gtype.nrj, gtype.btime, gtype.walk, gtype.photosyntes, gtype.c1, gtype.start, gtype.time, gtype.undo, gtype.dup2, gtype.stop, gtype.suicide, gtype.rbot, gtype.c5, gtype.nrj, gtype.input, gtype.dup2, gtype.Rrot, gtype.grate, gtype.photosyntes, gtype.less, gtype.bot, gtype.div, gtype.less, gtype.stop, gtype.photosyntes, gtype.less, gtype.rep, gtype.rbot, gtype.add, gtype.rand, gtype.posy, gtype.equal, gtype.c11, gtype.and, gtype.btime, gtype.rep });
+            main.queue.Add(main.cmap[70, 50]);
+            */
+        }
 
         public static void Tick()
         {
@@ -1242,9 +1369,10 @@ namespace GOB_Life
         private int dy = 1; //направление поворота
         private int mut; //сколько мутаций было
         private int rot; //поворот
-        private readonly int btime;
+        public int btime { get; private set; }
         public int gen, fgen; //ген и ген отца
-        float nrj;
+        public float nrj;
+        public float predation { get; private set; } = 0.5F;
         public List<Gate> gates = new List<Gate>();
         public Gtype[] DNA, FDNA;
         private static readonly Gtype[] coddons = { Gtype.start, Gtype.input, Gtype.output, Gtype.stop, Gtype.skip, Gtype.undo, Gtype.empty }; //специальный кодоны
@@ -1397,14 +1525,14 @@ namespace GOB_Life
                     nrj += 2;
                     break;
                 case Gtype.rep: //размножение
-                    /*
-                    if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
-                    {
-                        main.cmap[tx, ty] = new Bot(tx, ty, 5, this);
-                        main.bqueue.Add(main.cmap[tx, ty]);
-                    }
-                    break;
-                    */
+                /*
+                if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
+                {
+                    main.cmap[tx, ty] = new Bot(tx, ty, 5, this);
+                    main.bqueue.Add(main.cmap[tx, ty]);
+                }
+                break;
+                */
                 case Gtype.sex: //половое размножение
                     if (main.cmap[tx, ty] != null) //есть ли второй родитель
                     {
@@ -1440,11 +1568,13 @@ namespace GOB_Life
                         float dnrj = main.cmap[tx, ty].nrj * 0.5F;
                         main.cmap[tx, ty].nrj -= dnrj;
                         nrj += dnrj;
+                        predation -= 0.01F;
                     }
                     if (main.fmap[tx, ty] != null)
                     {
                         nrj += main.fmap[tx, ty].nrj;
                         main.fmap[tx, ty] = null;
+                        predation += 0.01F;
                     }
                     break;
                 case Gtype.suicide: //суицид

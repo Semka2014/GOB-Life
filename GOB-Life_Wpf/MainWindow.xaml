@@ -1,0 +1,84 @@
+﻿<Window x:Class="GOB_Life_Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GOB-Life - симуляция естественного отбора" Height="450" Width="800" Background="#FFDFDFDF">
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*"/>
+            <!-- Левая часть в два раза меньше -->
+            <ColumnDefinition Width="3*"/>
+            <!-- Правая часть в три раза больше -->
+        </Grid.ColumnDefinitions>
+
+        <!-- Левая часть с элементами управления -->
+        <Grid Margin="5" Grid.Column="0" Background="#FFC5C3C3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Label x:Name="simInfoText" Grid.Row="0"></Label>
+            <Label Grid.Row="1">Режим отображения:</Label>
+            <ComboBox x:Name="vizMode" Grid.Row="2" Margin="5,5,5,10" SelectedIndex="0">
+                <ComboBoxItem Content="родня"/>
+                <ComboBoxItem Content="энергия"/>
+                <ComboBoxItem Content="хищники"/>
+                <ComboBoxItem Content="возраст"/>
+                <ComboBoxItem Content="потомки"/>
+            </ComboBox>
+            <Button Grid.Row="3" Margin="5,0,5,10" Click="Button_Click" Content="Запуск симуляции"/>
+            <Label Grid.Row="4">Сид:</Label>
+            <TextBox x:Name="seedInput" Grid.Row="5" Margin="5,0,5,10"></TextBox>
+            <Label Grid.Row="6">Размер поля:</Label>
+            <Grid Grid.Row="7">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="mapWidthInput" Grid.Column="0" Margin="5,0,5,0" Text="ширина"/>
+                <TextBox x:Name="mapHeightInput" Grid.Column="2" Margin="5,0,5,0" Text="высота"/>
+            </Grid>
+            <Label Grid.Row="8">Действие мыши:</Label>
+            <ComboBox x:Name="mouseAction" Grid.Row="9" Margin="5,5,5,10" SelectedIndex="0">
+                <ComboBoxItem Content="осмотреть бота"/>
+                <ComboBoxItem Content="убить бота"/>
+                <ComboBoxItem Content="создать еду"/>
+                <ComboBoxItem Content="очистить клетку"/>
+                <ComboBoxItem Content="вставить бота с днк"/>
+            </ComboBox>
+            
+            <Grid Grid.Row="11" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="pause" Grid.Column="0" Margin="5,0,5,5" Click="pause_Click" Content="| |"/>
+                <Button x:Name="step" Grid.Column="2" Margin="5,0,5,5" Content="▶|" Click="step_Click"/>
+            </Grid>
+        </Grid>
+
+        <!-- Правая часть с картинками -->
+        <Grid Grid.Column="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Border x:Name="MapBorder" Background="#FFC5C3C3" Margin="5,5,5,5" Cursor="Pen">
+                <Image x:Name="MapBox" Grid.Column="0" Stretch="Uniform" Grid.ColumnSpan="2" MouseLeftButtonUp="MapBox_MouseLeftButtonUp"/>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
