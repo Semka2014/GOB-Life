@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -15,7 +17,6 @@ namespace GOB_Life_Wpf
 {
     public partial class MainWindow : Window
     {
-        private DispatcherTimer timer;
         private InfoWin infoWin;
 
         public MainWindow()
@@ -34,18 +35,67 @@ namespace GOB_Life_Wpf
             targetImage.Source = bitmap;
         }
 
+        private bool isRunning = false;
+        private string generate = "";
+        private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
 
-        private void StartSimulation()
+        private async void Button_Click(object sender, RoutedEventArgs e)
         {
-            timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromMilliseconds(0); // Интервал обновления
-            timer.Tick += Timer_Tick;
-            timer.Start();
+            // Ожидаем завершения текущего тика перед началом новых действий
+            await semaphore.WaitAsync();
+
+            try
+            {
+                if (int.TryParse(mapWidthInput.Text, out int w) && int.TryParse(mapHeightInput.Text, out int h))
+                {
+                    main.width = w;
+                    main.height = h;
+                }
+
+                if (generate == seedInput.Text)
+                {
+                    generate = seedInput.Text = main.rnd.Next(int.MinValue, int.MaxValue).ToString();
+                }
+                else
+                {
+                    generate = "";
+                }
+
+                main.rnd = new Random(int.Parse(seedInput.Text));
+
+                // Выполняем RandomFill асинхронно
+                await Task.Run(() => main.RandomFill());
+
+                if (!isRunning)
+                {
+                    isRunning = true;
+                    _ = StartSimulationAsync(); // Запускаем симуляцию в фоновом режиме
+                }
+            }
+            finally
+            {
+                semaphore.Release(); // Освобождаем семафор
+            }
         }
 
-        private void Timer_Tick(object sender, EventArgs e)
+        private async Task StartSimulationAsync()
         {
-            Tick();
+            while (isRunning)
+            {
+                await semaphore.WaitAsync(); // Ждем разрешения перед выполнением тика
+                try
+                {
+                    if (isRunning)
+                    {
+                        await Task.Run(() => Tick());
+                    }
+                }
+                finally
+                {
+                    semaphore.Release(); // Освобождаем семафор после выполнения тика
+                }
+                await Task.Delay(0); // Можно настроить задержку, если нужно
+            }
         }
 
         private void Tick()
@@ -53,52 +103,56 @@ namespace GOB_Life_Wpf
             main.Tick();
             int w = (int)MapBorder.ActualWidth;
             int h = (int)MapBorder.ActualHeight;
-            RenderImage(Visualize.Map(ref w, ref h, vizMode.SelectedIndex), w, h, MapBox);
-            simInfoText.Content = $"Шаг {main.step}, {main.queue.Count} клеток";
+
+            // Получение изображения и обновление UI в главном потоке
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var image = Visualize.Map(ref w, ref h, vizMode.SelectedIndex);
+                RenderImage(image, w, h, MapBox);
+                simInfoText.Content = $"Шаг {main.step}, {main.queue.Count} клеток";
+            });
         }
 
-        string generate = "";
-
-        private void Button_Click(object sender, RoutedEventArgs e)
+        private void StopSimulation()
         {
-            if (int.TryParse(mapWidthInput.Text, out int w) && int.TryParse(mapHeightInput.Text, out int h))
-            {
-                main.width = w;
-                main.height = h;
-            }
-
-            if (generate == seedInput.Text)
-            {
-                generate = seedInput.Text = main.rnd.Next(int.MinValue, int.MaxValue).ToString(); ;
-            }
-            else
-            {
-                generate = "";
-            }
-
-            main.rnd = new Random(int.Parse(seedInput.Text));
-            main.RandomFill();
-            if (timer == null)
-            {
-                StartSimulation();
-            }
+            isRunning = false;
         }
 
-        private void pause_Click(object sender, RoutedEventArgs e)
+        // Новые методы для паузы и одного тика
+        private async void pause_Click(object sender, RoutedEventArgs e)
         {
-            if (timer == null)
-                return;
-            timer.IsEnabled = !timer.IsEnabled;
-            pause.Content = timer.IsEnabled ? "| |" : "▶";
+            await semaphore.WaitAsync();
+            try
+            {
+                isRunning = !isRunning;
+                if (isRunning)
+                {
+                    _ = StartSimulationAsync();
+                }
+                pause.Content = isRunning ? "| |" : "▶";
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
 
-        private void step_Click(object sender, RoutedEventArgs e)
+        private async void step_Click(object sender, RoutedEventArgs e)
         {
-            if (timer == null)
-                return;
-            if (!timer.IsEnabled)
-                Tick();
+            await semaphore.WaitAsync();
+            try
+            {
+                if (!isRunning)
+                {
+                    await Task.Run(() => Tick());
+                }
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
+
 
         // Вспомогательный метод для поиска дочернего элемента типа T
         private T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
@@ -122,88 +176,117 @@ namespace GOB_Life_Wpf
             return null;
         }
 
-        private void MapBox_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private async void MapBox_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            // Получаем координаты мыши относительно MapBox
-            Point mousePositionInMapBox = e.GetPosition(MapBox);
+            // Ожидаем завершения текущих операций перед началом новой
+            await semaphore.WaitAsync();
 
-            // Получаем изображение
-            var image = MapBox as Image;
-
-            if (image != null && image.Source != null)
+            try
             {
-                // Размеры изображения
-                double imageWidth = image.Source.Width;
-                double imageHeight = image.Source.Height;
+                // Получаем координаты мыши относительно MapBox
+                Point mousePositionInMapBox = e.GetPosition(MapBox);
 
-                // Размеры контейнера
-                double containerWidth = image.ActualWidth;
-                double containerHeight = image.ActualHeight;
+                // Получаем изображение
+                var image = MapBox;
 
-                // Вычисление масштабирования
-                double scaleX = containerWidth / imageWidth;
-                double scaleY = containerHeight / imageHeight;
-
-                // Преобразование координат
-                double relativeX = mousePositionInMapBox.X / scaleX;
-                double relativeY = mousePositionInMapBox.Y / scaleY;
-
-                int x = (int)Math.Round(relativeX / (imageWidth / main.width));
-                int y = (int)Math.Round(relativeY / (imageHeight / main.height));
-                switch (mouseAction.SelectedIndex)
+                if (image != null && image.Source != null)
                 {
-                    case 0:
-                        if (main.cmap[x, y] != null)
-                        {
-                            infoWin = new InfoWin();
-                            infoWin.Show();
-                            infoWin.Activate();
+                    // Размеры изображения
+                    double imageWidth = image.Source.Width;
+                    double imageHeight = image.Source.Height;
 
-                            RenderImage(Visualize.Brain(main.cmap[x, y], out int w, out int h), w, h, infoWin.BrainBox);
+                    // Размеры контейнера
+                    double containerWidth = image.ActualWidth;
+                    double containerHeight = image.ActualHeight;
 
-                            StringBuilder dna = new StringBuilder();
-                            bool first = true;
-                            foreach (var n in main.cmap[x, y].DNA)
+                    // Вычисление масштабирования
+                    double scaleX = containerWidth / imageWidth;
+                    double scaleY = containerHeight / imageHeight;
+
+                    // Преобразование координат
+                    double relativeX = mousePositionInMapBox.X / scaleX;
+                    double relativeY = mousePositionInMapBox.Y / scaleY;
+
+                    int x = (int)Math.Round(relativeX / (imageWidth / main.width));
+                    int y = (int)Math.Round(relativeY / (imageHeight / main.height));
+
+                    // Работа с разными действиями
+                    switch (mouseAction.SelectedIndex)
+                    {
+                        case 0:
+                            if (main.cmap[x, y] != null)
                             {
-                                if (!first)
-                                    dna.Append(" ");
-                                dna.Append(n.ToString());
-                                first = false;
+                                var infoWin = new InfoWin();
+                                infoWin.Show();
+                                infoWin.Activate();
+
+                                // Обновление информации в UI
+                                Application.Current.Dispatcher.Invoke(() =>
+                                {
+                                    RenderImage(Visualize.Brain(main.cmap[x, y], out int w, out int h), w, h, infoWin.BrainBox);
+
+                                    StringBuilder dna = new StringBuilder();
+                                    bool first = true;
+                                    foreach (var n in main.cmap[x, y].DNA)
+                                    {
+                                        if (!first)
+                                            dna.Append(" ");
+                                        dna.Append(n.ToString());
+                                        first = false;
+                                    }
+                                    infoWin.dnaText.Text = dna.ToString();
+                                });
                             }
-                            infoWin.dnaText.Text = dna.ToString();
-                        }
-                        break; //осмотреть бота
-                    case 1:
-                        if (main.cmap[x, y] != null)
-                            main.cmap[x, y].nrj = 0;
-                        break; //убить бота
-                    case 2:
-                        if (main.cmap[x, y] == null && main.fmap[x, y] == null)
-                            main.fmap[x, y] = new Food(x, y, 10);
-                        break; //создать еду
-                    case 3:
-                        main.queue.Remove(main.cmap[x, y]);
-                        main.bqueue.Remove(main.cmap[x, y]);
-                        main.cmap[x, y] = null;
-                        main.fmap[x, y] = null;
-                        break; //очистить клетку
-                    case 4:
-                        if (main.cmap[x, y] == null && main.fmap[x, y] == null)
-                        {
-                            string[] tdna = Clipboard.GetText().Split();
-                            Gtype[] Idna = new Gtype[tdna.Length];
-                            for (int i = 0; i < Idna.Length; i++)
+                            break;
+
+                        case 1:
+                            if (main.cmap[x, y] != null)
+                                main.cmap[x, y].nrj = 0;
+                            break;
+
+                        case 2:
+                            if (main.cmap[x, y] == null && main.fmap[x, y] == null)
+                                main.fmap[x, y] = new Food(x, y, 10);
+                            break;
+
+                        case 3:
+                            main.queue.Remove(main.cmap[x, y]);
+                            main.bqueue.Remove(main.cmap[x, y]);
+                            main.cmap[x, y] = null;
+                            main.fmap[x, y] = null;
+                            break;
+
+                        case 4:
+                            if (main.cmap[x, y] == null && main.fmap[x, y] == null)
                             {
-                                if (!Enum.TryParse(tdna[i], out Idna[i]))
-                                    return;
+                                string[] tdna = Clipboard.GetText().Split();
+                                Gtype[] Idna = new Gtype[tdna.Length];
+                                for (int i = 0; i < Idna.Length; i++)
+                                {
+                                    if (!Enum.TryParse(tdna[i], out Idna[i]))
+                                        return;
+                                }
+                                main.queue.Add(new Bot(x, y, 10, main.rnd.Next(int.MinValue, int.MaxValue), Idna));
+                                main.cmap[x, y] = main.queue.Last();
                             }
-                            main.queue.Add(new Bot(x, y, 10, main.rnd.Next(int.MinValue, int.MaxValue), Idna));
-                            main.cmap[x, y] = main.queue.Last();
-                        }
-                        break; //вставить бота
+                            break;
+                    }
+
+                    // Обновление изображения на MapBox в главном потоке
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        int renW = (int)MapBorder.ActualWidth;
+                        int renH = (int)MapBorder.ActualHeight;
+                        RenderImage(Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex), renW, renH, MapBox);
+                    });
                 }
             }
+            finally
+            {
+                semaphore.Release(); // Освобождаем семафор
+            }
         }
+
     }
 
     enum Gtype
