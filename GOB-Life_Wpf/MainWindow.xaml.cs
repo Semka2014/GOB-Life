@@ -12,17 +12,17 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using NCalc;
 
 namespace GOB_Life_Wpf
 {
     public partial class MainWindow : Window
     {
-        private InfoWin infoWin;
-
         public MainWindow()
         {
             InitializeComponent();
             Visualize.LoadGradients();
+            Formuls.Load();
         }
 
         public static void RenderImage(byte[] pixelData, int width, int height, Image targetImage)
@@ -118,7 +118,6 @@ namespace GOB_Life_Wpf
             isRunning = false;
         }
 
-        // Новые методы для паузы и одного тика
         private async void pause_Click(object sender, RoutedEventArgs e)
         {
             await semaphore.WaitAsync();
@@ -716,7 +715,6 @@ namespace GOB_Life_Wpf
             return caption;
         }
 
-        static public IntPtr vren;
         private static readonly List<(Gate, Node)> queue = new List<(Gate, Node)>();
         static readonly List<Edge> edges = new List<Edge>();
 
@@ -868,7 +866,7 @@ namespace GOB_Life_Wpf
                         maxy = gt.Item2.y;
                 }
 
-                int dy = (h - maxy) / 2;
+                int dy = (h - (maxy + 40)) / 2;
                 foreach (var gt in queue)
                 {
                     if (gt.Item2.layer != l)
@@ -1142,6 +1140,70 @@ namespace GOB_Life_Wpf
         }
     }
 
+    public static class Formuls
+    {
+        private static Dictionary<string, (NCalc.Expression Expression, string[] Parameters)> customFunctions = new Dictionary<string, (NCalc.Expression, string[])>();
+        private static Dictionary<string, NCalc.Expression> formuls = new Dictionary<string, NCalc.Expression>();
+
+        public static void Load()
+        {
+            string[] comands = File.ReadAllLines("formuls.txt");
+            for (int i = 0; i < comands.Length; i++)
+            {
+                if (comands[i].Length == 0)
+                    continue;
+                if (comands[i][0] == '#')
+                    continue;
+
+                string[] cmd = comands[i].Split();
+                
+                switch (cmd[0])
+                {
+                    case "func":
+                        AddFunction(cmd[1], cmd[2], cmd.Skip(3).ToArray());
+                        break;
+                    default:
+                        formuls.Add(cmd[0], new NCalc.Expression(cmd[1]));
+                        break;
+                }
+            }
+        }
+
+        private static void AddFunction(string functionName, string formula, params string[] parameterNames)
+        {
+            customFunctions[functionName] = (new NCalc.Expression(formula), parameterNames);
+        }
+
+        public static double Compute(string formulaName, params (string, double)[] variables)
+        {
+            if (!formuls.ContainsKey(formulaName))
+                throw new ArgumentException($"Formula '{formulaName}' not found.");
+
+            var expression = formuls[formulaName];
+
+            foreach (var variable in variables)
+            {
+                expression.Parameters[variable.Item1] = variable.Item2;
+            }
+
+            expression.EvaluateFunction += (name, args) =>
+            {
+                if (customFunctions.ContainsKey(name))
+                {
+                    var (functionExpression, parameterNames) = customFunctions[name];
+                    for (int i = 0; i < parameterNames.Length; i++)
+                    {
+                        functionExpression.Parameters[parameterNames[i]] = args.Parameters[i].Evaluate();
+                    }
+
+                    args.Result = functionExpression.Evaluate();
+                }
+            };
+
+            return Convert.ToDouble(expression.Evaluate());
+        }
+    }
+
     static class main
     {
         public static int width = 350, height = 200;
@@ -1406,6 +1468,7 @@ namespace GOB_Life_Wpf
             dy = f.dy;
             rot = f.rot;
             fgen = f.fgen;
+            predation = f.predation;
 
             Mutation(f.DNA);
 
@@ -1433,6 +1496,7 @@ namespace GOB_Life_Wpf
             dy = p2.dy;
             rot = p2.rot;
             fgen = p1.fgen;
+            predation = p1.predation + p2.predation;
 
             Mutation(Crossingover(p1.DNA, p2.DNA));
 
@@ -1545,14 +1609,28 @@ namespace GOB_Life_Wpf
 
         public void Init()
         {
+            List<(string, double)> param = new List<(string, double)>
+            {
+                ("energy", nrj),
+                ("predation", predation),
+                ("mutation", mut),
+                ("time", main.step),
+                ("dnal", DNA.Length),
+                ("width", main.width),
+                ("x", x),
+                ("height", main.height),
+                ("y", y),
+                ("random", main.rnd.Next(0, 1000))
+            };
+
             int tx = (x + dx + main.width) % main.width;
             int ty = (y + dy + main.height) % main.height;
 
-            nrj--;
+            nrj += (float)Formuls.Compute("pasEn", param.ToArray());
             if (nrj <= 0)
             {
                 main.cmap[x, y] = null;
-                main.fmap[x, y] = new Food(x, y, 10);
+                main.fmap[x, y] = new Food(x, y, (float)Formuls.Compute("deadEn", param.ToArray()));
                 return;
             } //смерть
 
@@ -1605,17 +1683,19 @@ namespace GOB_Life_Wpf
             switch (main.Think(this, out float signal))
             {
                 case Gtype.photosyntes: //фотосинтез
-                    nrj += 2;
+                    nrj += (float)Formuls.Compute("photoEn", param.ToArray());
+                    predation += 0.01F;
                     break;
                 case Gtype.rep: //размножение
-                /*
-                if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
-                {
-                    main.cmap[tx, ty] = new Bot(tx, ty, 5, this);
-                    main.bqueue.Add(main.cmap[tx, ty]);
-                }
-                break;
-                */
+
+                    if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
+                    {
+                        main.cmap[tx, ty] = new Bot(tx, ty, (float)Formuls.Compute("childEn", param.ToArray()), this);
+                        main.bqueue.Add(main.cmap[tx, ty]);
+                        nrj += (float)Formuls.Compute("dupEn", param.ToArray());
+                    }
+                    break;
+
                 case Gtype.sex: //половое размножение
                     if (main.cmap[tx, ty] != null) //есть ли второй родитель
                     {
@@ -1625,16 +1705,24 @@ namespace GOB_Life_Wpf
 
                         if (main.cmap[tx2, ty2] == null && main.fmap[tx2, ty2] == null) //пусто ли перед вторым родителем
                         {
-                            main.cmap[tx2, ty2] = new Bot(tx2, ty2, 5, this, p2);
+                            main.cmap[tx2, ty2] = new Bot(tx2, ty2, (float)Formuls.Compute("deadEn", param.ToArray()), this, p2);
                             main.bqueue.Add(main.cmap[tx2, ty2]);
+
+                            param.Add(("energy2", p2.nrj));
+                            param.Add(("dnal2", p2.DNA.Length));
+
+                            nrj += (float)Formuls.Compute("sexP1En", param.ToArray());
+                            p2.nrj += (float)Formuls.Compute("sexP2En", param.ToArray());
                         }
                     }
                     break;
                 case Gtype.Rrot: //поворот 1
                     rot = (rot + 1) % 8;
+                    nrj += (float)Formuls.Compute("rot1En", param.ToArray());
                     break;
                 case Gtype.Lrot: //поворот 2
                     rot = (rot + 7) % 8;
+                    nrj += (float)Formuls.Compute("rot2En", param.ToArray());
                     break;
                 case Gtype.walk: //ходьба
                     if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
@@ -1643,25 +1731,30 @@ namespace GOB_Life_Wpf
                         main.cmap[x, y] = null;
                         x = tx;
                         y = ty;
+                        nrj += (float)Formuls.Compute("walkEn", param.ToArray());
                     }
                     break;
                 case Gtype.atack: //атака
                     if (main.cmap[tx, ty] != null)
                     {
-                        float dnrj = main.cmap[tx, ty].nrj * 0.5F;
-                        main.cmap[tx, ty].nrj -= dnrj;
-                        nrj += dnrj;
+                        param.Add(("energy2", main.cmap[tx, ty].nrj));
+                        float dnrj = Math.Min((float)Formuls.Compute("deadEn", param.ToArray()), main.cmap[tx, ty].nrj);
+                        main.cmap[tx, ty].nrj -= (float)Formuls.Compute("deadEn", param.ToArray());
+
+                        param.Add(("stealedEn", dnrj));
+                        nrj += (float)Formuls.Compute("deadEn", param.ToArray());
                         predation -= 0.01F;
                     }
                     if (main.fmap[tx, ty] != null)
                     {
-                        nrj += main.fmap[tx, ty].nrj;
+                        param.Add(("fenergy", main.fmap[tx, ty].nrj));
+                        nrj += (float)Formuls.Compute("fEatEn", param.ToArray());
                         main.fmap[tx, ty] = null;
-                        predation += 0.01F;
+                        predation += 0.001F;
                     }
                     break;
                 case Gtype.suicide: //суицид
-                    main.fmap[x, y] = new Food(x, y, nrj);
+                    main.fmap[x, y] = new Food(x, y, (float)Formuls.Compute("sdeadEn", param.ToArray()));
                     main.cmap[x, y] = null;
                     return;
             }

@@ -35,6 +35,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="NCalc, Version=1.3.8.0, Culture=neutral, PublicKeyToken=973cde3f1cafed03, processorArchitecture=MSIL">
+      <HintPath>..\packages\ncalc.1.3.8\lib\NCalc.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
@@ -94,6 +97,7 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -102,5 +106,13 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="formuls.txt" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>xcopy "$(ProjectDir)Images" "$(TargetDir)Images" /E /I /Y
+xcopy "$(ProjectDir)formuls.txt" "$(TargetDir)formuls.txt" /Y
+</PreBuildEvent>
+  </PropertyGroup>
 </Project>
