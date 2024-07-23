@@ -111,8 +111,13 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PreBuildEvent>xcopy "$(ProjectDir)Images" "$(TargetDir)Images" /E /I /Y
-xcopy "$(ProjectDir)formuls.txt" "$(TargetDir)formuls.txt" /Y
+    <PreBuildEvent>@if "$(ConfigurationName)"=="Debug" (
+   echo Copying files for Debug configuration...
+   xcopy /E /I /Y "$(ProjectDir)Images" "$(TargetDir)Images"
+   xcopy /Y "$(ProjectDir)formuls.txt" "$(TargetDir)formuls.txt"
+) else (
+   echo Skipping file copy for Release configuration.
+)
 </PreBuildEvent>
   </PropertyGroup>
 </Project>
