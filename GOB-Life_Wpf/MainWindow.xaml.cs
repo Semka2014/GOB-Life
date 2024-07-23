@@ -1,6 +1,7 @@
 ﻿using NCalc;
 using System;
 using System.Collections.Generic;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -117,6 +118,10 @@ namespace GOB_Life_Wpf
                     var image = Visualize.Map(ref w, ref h, vizMode.SelectedIndex);
                     RenderImage(image, w, h, MapBox);
                     simInfoText.Content = $"Шаг {main.step}, {main.queue.Count} клеток";
+                    if (RecordingCheck.IsChecked.Value && main.step % int.Parse(rocordInput.Text) == 0)
+                    {
+                        Save(image, w, h);
+                    }
                 });
             }
             catch (Exception ex)
@@ -282,11 +287,35 @@ namespace GOB_Life_Wpf
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при обработке нажатия: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при обработке нажатия: В {ex.Source} {ex.TargetSite} {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
                 semaphore.Release();
+            }
+        }
+
+        private void Save(byte[] pixels, int width, int height)
+        {
+            System.Drawing.Bitmap bitmap = new System.Drawing.Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            BitmapData bitmapData = bitmap.LockBits(
+                new System.Drawing.Rectangle(0, 0, width, height),
+                ImageLockMode.WriteOnly,
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+            IntPtr ptr = bitmapData.Scan0;
+            System.Runtime.InteropServices.Marshal.Copy(pixels, 0, ptr, pixels.Length);
+            bitmap.UnlockBits(bitmapData);
+
+            bitmap.Save($"Record/{main.step}.png");
+        }
+
+        private void ClearRecord(object sender, RoutedEventArgs e)
+        {
+            string[] files = Directory.GetFiles("Record");
+            foreach (string file in files)
+            {
+                File.Delete(file);
             }
         }
     }
@@ -541,13 +570,6 @@ namespace GOB_Life_Wpf
                     }
                 }
 
-                public BitmapSource ToBitmapSource()
-                {
-                    return BitmapSource.Create(
-                        width, height, 96, 96,
-                        PixelFormats.Bgra32, null,
-                        pixels, width * 4);
-                }
             }
 
             private static void ColorFromGradient(double val, double min, double max, int gradient, out byte a, out byte r, out byte g, out byte b)
@@ -616,6 +638,9 @@ namespace GOB_Life_Wpf
                 string caption;
                 switch (type)
                 {
+                    case Gtype.recomb:
+                        caption = "rcb";
+                        break;
                     case Gtype.gen:
                         caption = "gn";
                         break;
@@ -824,6 +849,7 @@ namespace GOB_Life_Wpf
                 queue.Clear();
                 edges.Clear();
                 int x = 20, y = 0;
+                List<int> layersH = new List<int>() { -1 };
                 bool mem = true; ; //запомнить гейт
                 (Gate, Node) flg = (null, null); //запомненый гейт
 
@@ -833,6 +859,14 @@ namespace GOB_Life_Wpf
                     {
                         var node = new Node(gate, x, y, layer);
                         y += node.h + 10;
+
+                        if (layersH[node.layer] < node.y + node.h)
+                        {
+                            layersH[node.layer] = node.y + node.h;
+                            if (h < layersH[node.layer])
+                                h = layersH[node.layer] + 20;
+                        }
+
                         queue.Add((gate, node));
                         if (mem)
                         {
@@ -854,6 +888,14 @@ namespace GOB_Life_Wpf
                         w = x;
                         x += 80;
                         y = 0;
+                        layersH.Add(-1);
+                    }
+
+                    if (layersH[node.layer] < node.y + node.h)
+                    {
+                        layersH[node.layer] = node.y + node.h;
+                        if (h < layersH[node.layer])
+                            h = layersH[node.layer] + 20;
                     }
 
                     for (int j = 0; j < gate1.input.Length; j++)
@@ -899,43 +941,27 @@ namespace GOB_Life_Wpf
                 }
 
                 w += 60;
-                int ldy = 0;
 
                 //сдвигаем все ноды по центру
-                for (int l = 0; l < layer; l++)
+
+                foreach (var gt in queue)
                 {
-                    int maxy = 0;
+                    Node nod = gt.Item2;
+                    int dy = (h - layersH[nod.layer]) / 2;
 
-                    foreach (var gt in queue)
-                    {
-                        if (gt.Item2.layer == l && maxy < gt.Item2.y)
-                        {
-                            maxy = gt.Item2.y + gt.Item2.h;
-                            if (maxy > h)
-                                h = maxy + 20;
-                        }
-                    }
+                    nod.y += dy;
+                    for (int ii = 0; ii < nod.input.Length; ii++)
+                        nod.input[ii].Item2 += dy;
+                    for (int ii = 0; ii < nod.output.Length; ii++)
+                        nod.output[ii].Item2 += dy;
+                }
+                foreach (var ed in edges)
+                {
+                    int dy = (h - layersH[ed.layer]) / 2;
+                    int ldy = layer == 0 ? 0 : (h - layersH[ed.layer - 1]) / 2;
 
-                    int dy = (h - maxy) / 2;
-                    foreach (var gt in queue)
-                    {
-                        if (gt.Item2.layer != l)
-                            continue;
-                        Node nod = gt.Item2;
-                        nod.y += dy;
-                        for (int ii = 0; ii < nod.input.Length; ii++)
-                            nod.input[ii].Item2 += dy;
-                        for (int ii = 0; ii < nod.output.Length; ii++)
-                            nod.output[ii].Item2 += dy;
-                    }
-                    foreach (var ed in edges)
-                    {
-                        if (ed.layer != l)
-                            continue;
-                        ed.y1 += ldy;
-                        ed.y2 += dy;
-                    }
-                    ldy = dy;
+                    ed.y1 += ldy;
+                    ed.y2 += dy;
                 }
 
                 CustomImage img = new CustomImage(w, h);
@@ -1814,8 +1840,12 @@ namespace GOB_Life_Wpf
                             List<Gtype[]> dna2 = SplitByElement(main.cmap[tx, ty].DNA, Gtype.start);
                             int maxL = Math.Max(dna1.Length, dna2.Count);
                             int adr = Math.Abs((int)Math.Round(signal * maxL) + maxL);
-                            dna2.Insert(adr % dna2.Count, dna1[dna1.Length % dna1.Length]);
+                            Gtype[] gen = dna1[dna1.Length % dna1.Length];
+                            dna2.Insert(adr % dna2.Count, gen);
                             main.cmap[tx, ty].DNA = CombineWithDelimiter(dna2.ToArray(), Gtype.start);
+
+                            param.Add(("genL", gen.Length));
+                            nrj += (float)Formuls.Compute("recombEn", param.ToArray());
                         }
                         break;
                 }
