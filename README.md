@@ -1,6 +1,6 @@
 # GOB-Life
 
-![Simulation Image](https://i.imgur.com/tKslvqX.png)
+![Simulation Image](https://i.imgur.com/xhplegl.png)
 
 ## Описание
 

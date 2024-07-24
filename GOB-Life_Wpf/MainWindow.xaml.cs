@@ -1,6 +1,7 @@
 ﻿using NCalc;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,7 @@ namespace GOB_Life_Wpf
 {
     public partial class MainWindow : Window
     {
+        int frame = 0;
         public MainWindow()
         {
             InitializeComponent();
@@ -115,18 +117,19 @@ namespace GOB_Life_Wpf
                 // Асинхронный вызов для рендеринга изображения и обновления UI
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    var image = Visualize.Map(ref w, ref h, vizMode.SelectedIndex);
+                    var image = Visualize.Map(ref w, ref h, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value);
                     RenderImage(image, w, h, MapBox);
                     simInfoText.Content = $"Шаг {main.step}, {main.queue.Count} клеток";
                     if (RecordingCheck.IsChecked.Value && main.step % int.Parse(rocordInput.Text) == 0)
                     {
                         Save(image, w, h);
+                        frame++;
                     }
                 });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка в методе Tick: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка в методе Tick: В {ex.Source} {ex.TargetSite} {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -281,7 +284,7 @@ namespace GOB_Life_Wpf
                     {
                         int renW = (int)MapBorder.ActualWidth;
                         int renH = (int)MapBorder.ActualHeight;
-                        RenderImage(Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex), renW, renH, MapBox);
+                        RenderImage(Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value), renW, renH, MapBox);
                     });
                 }
             }
@@ -307,11 +310,12 @@ namespace GOB_Life_Wpf
             System.Runtime.InteropServices.Marshal.Copy(pixels, 0, ptr, pixels.Length);
             bitmap.UnlockBits(bitmapData);
 
-            bitmap.Save($"Record/{main.step}.png");
+            bitmap.Save($"Record/{frame}.png");
         }
 
         private void ClearRecord(object sender, RoutedEventArgs e)
         {
+            frame = 0;
             string[] files = Directory.GetFiles("Record");
             foreach (string file in files)
             {
@@ -553,10 +557,13 @@ namespace GOB_Life_Wpf
                                 if (i >= 0 && i < height && j >= 0 && j < width)
                                 {
                                     int index = (i * width + j) * 4;
-                                    pixels[index] = color.B;
-                                    pixels[index + 1] = color.G;
-                                    pixels[index + 2] = color.R;
-                                    pixels[index + 3] = color.A;
+                                    byte oldAlpha = pixels[index + 3];
+                                    byte newAlpha = color.A;
+                                    byte alpha = (byte)(newAlpha + oldAlpha * (255 - newAlpha) / 255);
+                                    pixels[index] = (byte)((color.B * newAlpha + pixels[index] * (255 - newAlpha)) / 255);
+                                    pixels[index + 1] = (byte)((color.G * newAlpha + pixels[index + 1] * (255 - newAlpha)) / 255);
+                                    pixels[index + 2] = (byte)((color.R * newAlpha + pixels[index + 2] * (255 - newAlpha)) / 255);
+                                    pixels[index + 3] = alpha;
                                 }
                             }
                         }
@@ -569,7 +576,6 @@ namespace GOB_Life_Wpf
                         DrawLine(x, y + rectHeight - 1, x, y, color);
                     }
                 }
-
             }
 
             private static void ColorFromGradient(double val, double min, double max, int gradient, out byte a, out byte r, out byte g, out byte b)
@@ -848,7 +854,7 @@ namespace GOB_Life_Wpf
                 int layer = 0;
                 queue.Clear();
                 edges.Clear();
-                int x = 20, y = 0;
+                int x = 10, y = 0;
                 List<int> layersH = new List<int>() { -1 };
                 bool mem = true; ; //запомнить гейт
                 (Gate, Node) flg = (null, null); //запомненый гейт
@@ -940,7 +946,7 @@ namespace GOB_Life_Wpf
                     }
                 }
 
-                w += 60;
+                w += 50;
 
                 //сдвигаем все ноды по центру
 
@@ -1028,7 +1034,7 @@ namespace GOB_Life_Wpf
                 return img.Pixels;
             }
 
-            public static byte[] Map(ref int w, ref int h, int vizMode)
+            public static byte[] Map(ref int w, ref int h, int vizMode, bool oxygen)
             {
                 int c = Math.Min(w / main.width, h / main.height);
                 w = c * main.width;
@@ -1080,6 +1086,16 @@ namespace GOB_Life_Wpf
                     int foodY = f.y * c;
                     img.DrawRectangle(foodX, foodY, c, c, Color.FromArgb(255, 50, 50, 50), true);
                 }
+
+                if (oxygen)
+                    for (int x = 0; x < main.width; x++)
+                    {
+                        for (int y = 0; y < main.height; y++)
+                        {
+                            ColorFromGradient(main.oxmap[x, y], 0, 1, 3, out byte a, out byte r, out byte g, out byte b);
+                            img.DrawRectangle(x * c, y * c, c, c, Color.FromArgb(a, r, g, b), true);
+                        }
+                    }
 
                 return img.Pixels;
             }
@@ -1268,7 +1284,7 @@ namespace GOB_Life_Wpf
                     if (comands[i][0] == '#')
                         continue;
 
-                    string[] cmd = comands[i].Split();
+                    string[] cmd = comands[i].Split(new string[] { ", " }, StringSplitOptions.None);
 
                     switch (cmd[0])
                     {
@@ -1290,7 +1306,10 @@ namespace GOB_Life_Wpf
             public static double Compute(string formulaName, params (string, double)[] variables)
             {
                 if (!formuls.ContainsKey(formulaName))
-                    throw new ArgumentException($"Formula '{formulaName}' not found.");
+                {
+                    MessageBox.Show($"Formula '{formulaName}' not found.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return double.NaN; // Or throw an exception if that's preferred
+                }
 
                 var expression = formuls[formulaName];
 
@@ -1305,29 +1324,50 @@ namespace GOB_Life_Wpf
                     if (customFunctions.ContainsKey(name))
                     {
                         var (functionExpression, parameterNames) = customFunctions[name];
+
+                        foreach (var variable in variables)
+                        {
+                            functionExpression.Parameters[variable.Item1] = variable.Item2;
+                        }
+
                         for (int i = 0; i < parameterNames.Length; i++)
                         {
                             functionExpression.Parameters[parameterNames[i]] = args.Parameters[i].Evaluate();
                         }
 
-                        args.Result = functionExpression.Evaluate();
+                        try
+                        {
+                            args.Result = functionExpression.Evaluate();
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Error evaluating function '{name}': {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                            throw;  // Re-throw to handle it further up the stack
+                        }
                     }
                 };
 
                 expression.EvaluateFunction += handler;
-                var result = Convert.ToDouble(expression.Evaluate());
-                expression.EvaluateFunction -= handler;
 
-                return result;
+                try
+                {
+                    var result = Convert.ToDouble(expression.Evaluate());
+                    expression.EvaluateFunction -= handler;
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error evaluating formula '{formulaName}': {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return double.NaN; // Or throw an exception if that's preferred
+                }
             }
         }
-
-
         public static class main
         {
             public static int width = 350, height = 200;
             public static Bot[,] cmap = new Bot[width, height];
             public static Food[,] fmap = new Food[width, height];
+            public static float[,] oxmap = new float[width, height];
 
             public static List<Bot> queue = new List<Bot>();
             public static List<Bot> bqueue = new List<Bot>();
@@ -1357,15 +1397,13 @@ namespace GOB_Life_Wpf
                     }
                 }
 
-                /*
-                gtype[] bestDNA = new gtype[] { gtype.start, gtype.dup2, gtype.output, gtype.atack, gtype.not, gtype.walk, gtype.input, gtype.or, gtype.bot, gtype.food, gtype.stop, gtype.start, gtype.and, gtype.output, gtype.rep, gtype.input, gtype.not, gtype.or, gtype.bot, gtype.food, gtype.equal, gtype.c0, gtype.mod, gtype.c2, gtype.time, gtype.stop, gtype.start, gtype.Lrot, gtype.input, gtype.rbot, gtype.stop, gtype.start, gtype.photosyntes, gtype.input, gtype.less, gtype.c5, gtype.nrj, gtype.stop, gtype.start, gtype.suicide, gtype.input, gtype.grate, gtype.mul, gtype.c11, gtype.mul, gtype.c11, gtype.c2, gtype.time, gtype.stop };
-                main.cmap[30, 30] = new bot(30, 30, 10, 0, bestDNA);
-                main.queue.Add(main.cmap[30, 30]);
-
-                /*
-                main.cmap[70, 50] = new bot(70, 50, 10, 666, new gtype[] { gtype.start, gtype.nrj, gtype.rep, gtype.dup3, gtype.input, gtype.and, gtype.posx, gtype.dup2, gtype.xor, gtype.input, gtype.Rrot, gtype.bot, gtype.walk, gtype.less, gtype.output, gtype.skip, gtype.Lrot, gtype.or, gtype.bot, gtype.rbot, gtype.bot, gtype.photosyntes, gtype.food, gtype.c2, gtype.start, gtype.grate, gtype.food, gtype.mod, gtype.div, gtype.div, gtype.walk, gtype.atack, gtype.undo, gtype.grate, gtype.atack, gtype.photosyntes, gtype.atack, gtype.photosyntes, gtype.grate, gtype.wait, gtype.rbot, gtype.undo, gtype.or, gtype.output, gtype.c1, gtype.rep, gtype.undo, gtype.rand, gtype.btime, gtype.atack, gtype.c2, gtype.rep, gtype.div, gtype.walk, gtype.rbot, gtype.equal, gtype.btime, gtype.Lrot, gtype.dup3, gtype.walk, gtype.Rrot, gtype.mod, gtype.grate, gtype.div, gtype.c11, gtype.c2, gtype.less, gtype.rbot, gtype.not, gtype.memory, gtype.bot, gtype.output, gtype.add, gtype.atack, gtype.dup2, gtype.xor, gtype.not, gtype.time, gtype.stop, gtype.grate, gtype.undo, gtype.undo, gtype.walk, gtype.memory, gtype.equal, gtype.or, gtype.food, gtype.equal, gtype.stop, gtype.time, gtype.wait, gtype.stop, gtype.grate, gtype.xor, gtype.c2, gtype.less, gtype.suicide, gtype.sub, gtype.output, gtype.c11, gtype.and, gtype.time, gtype.div, gtype.sub, gtype.equal, gtype.atack, gtype.food, gtype.and, gtype.time, gtype.Rrot, gtype.c5, gtype.dup3, gtype.Rrot, gtype.div, gtype.posy, gtype.grate, gtype.btime, gtype.c0, gtype.c2, gtype.rbot, gtype.not, gtype.output, gtype.time, gtype.Rrot, gtype.nrj, gtype.btime, gtype.walk, gtype.photosyntes, gtype.c1, gtype.start, gtype.time, gtype.undo, gtype.dup2, gtype.stop, gtype.suicide, gtype.rbot, gtype.c5, gtype.nrj, gtype.input, gtype.dup2, gtype.Rrot, gtype.grate, gtype.photosyntes, gtype.less, gtype.bot, gtype.div, gtype.less, gtype.stop, gtype.photosyntes, gtype.less, gtype.rep, gtype.rbot, gtype.add, gtype.rand, gtype.posy, gtype.equal, gtype.c11, gtype.and, gtype.btime, gtype.rep });
-                main.queue.Add(main.cmap[70, 50]);
-                */
+                for (int x = 0; x < width; x++)
+                {
+                    for (int y = 0; y < height; y++)
+                    {
+                        oxmap[x, y] = rnd.Next(60, 100) / 100F;
+                    }
+                }
             }
 
             public static void Tick()
@@ -1377,36 +1415,43 @@ namespace GOB_Life_Wpf
                 queue = new List<Bot>(bqueue);
                 bqueue.Clear();
 
+                float[,] boxmap = new float[width, height];
+                for (int x = 0; x < width; x++)
+                {
+                    for (int y = 0; y < height; y++)
+                    {
+                        int div = 0;
+                        for (int xx = -1; xx <= 1; xx++)
+                        {
+                            for (int yy = -1; yy <= 1; yy++)
+                            {
+                                int tx = (x + xx + width) % width;
+                                int ty = (y + yy + height) % height;
+                                if ((cmap[tx, ty] == null && fmap[tx, ty] == null) || (cmap[x, y] == null && fmap[x, y] == null) || (tx == x && ty == y))
+                                {
+                                    div++;
+                                }
+                            }
+                        }
+                        for (int xx = -1; xx <= 1; xx++)
+                        {
+                            for (int yy = -1; yy <= 1; yy++)
+                            {
+                                int tx = (x + xx + width) % width;
+                                int ty = (y + yy + height) % height;
+                                if ((cmap[tx, ty] == null && fmap[tx, ty] == null) || (cmap[x, y] == null && fmap[x, y] == null) || (tx == x && ty == y))
+                                {
+                                    boxmap[tx, ty] += oxmap[x, y] / div;
+                                }
+                            }
+                        }
+                    }
+                }
+                oxmap = boxmap;
+
                 step++;
             }
 
-            static public Gtype Think(Bot e, out float signal)
-            {
-                List<Gate> queue = new List<Gate>();
-
-                foreach (Gate gate in e.gates)
-                {
-                    if (exp.Contains(gate.type))
-                        queue.Add(gate);
-                } //определяем точки выхода (действия)
-                for (int i = 0; i < queue.Count; i++)
-                {
-                    var gate = queue[i];
-                    foreach (var link in gate.input)
-                        if (!queue.Contains(link.A) && link.A != null)
-                            queue.Add(link.A);
-                } //продолжаем очередь
-                for (int i = queue.Count - 1; i >= 0; i--) //сворачиваем очередь
-                {
-                    var gate = queue[i];
-                    signal = gate.Compute();
-                    if (signal > 0 && exp.Contains(gate.type)) //выполнение действия
-                        return gate.type;
-                }
-
-                signal = 0;
-                return Gtype.wait;
-            } //вызывает гейты в нужном порядке
         }
 
         public class Food
@@ -1683,10 +1728,37 @@ namespace GOB_Life_Wpf
                 }
             } //создание мозга
 
+            private Gtype Think(out float signal)
+            {
+                List<Gate> queue = new List<Gate>();
+
+                foreach (Gate gate in gates)
+                {
+                    if (main.exp.Contains(gate.type))
+                        queue.Add(gate);
+                } //определяем точки выхода (действия)
+                for (int i = 0; i < queue.Count; i++)
+                {
+                    var gate = queue[i];
+                    foreach (var link in gate.input)
+                        if (!queue.Contains(link.A) && link.A != null)
+                            queue.Add(link.A);
+                } //продолжаем очередь
+                for (int i = queue.Count - 1; i >= 0; i--) //сворачиваем очередь
+                {
+                    var gate = queue[i];
+                    signal = gate.Compute();
+                    if (signal > 0 && main.exp.Contains(gate.type)) //выполнение действия
+                        return gate.type;
+                }
+
+                signal = 0;
+                return Gtype.wait;
+            } //вызывает гейты в нужном порядке
             public void Init()
             {
                 List<(string, double)> param = new List<(string, double)>
-            {
+                {
                 ("energy", nrj),
                 ("predation", predation),
                 ("mutation", mut),
@@ -1696,17 +1768,20 @@ namespace GOB_Life_Wpf
                 ("x", x),
                 ("height", main.height),
                 ("y", y),
-                ("random", main.rnd.Next(0, 1000))
-            };
+                ("random", main.rnd.Next(0, 1000)),
+                ("oxygen", main.oxmap[x, y])
+                }; //стандартные переменные для формул
 
                 int tx = (x + dx + main.width) % main.width;
                 int ty = (y + dy + main.height) % main.height;
 
+                main.oxmap[x, y] += (float)Formuls.Compute("pasOx", param.ToArray());
                 nrj += (float)Formuls.Compute("pasEn", param.ToArray());
                 if (nrj <= 0)
                 {
                     main.cmap[x, y] = null;
                     main.fmap[x, y] = new Food(x, y, (float)Formuls.Compute("deadEn", param.ToArray()));
+                    main.oxmap[x, y] += (float)Formuls.Compute("deadOx", param.ToArray());
                     return;
                 } //смерть
 
@@ -1756,10 +1831,11 @@ namespace GOB_Life_Wpf
                     }
                 } //обновление сенсоров
 
-                switch (main.Think(this, out float signal))
+                switch (Think(out float signal))
                 {
                     case Gtype.photosyntes: //фотосинтез
                         nrj += (float)Formuls.Compute("photoEn", param.ToArray());
+                        main.oxmap[x, y] += (float)Formuls.Compute("photoOx", param.ToArray());
                         predation += 0.01F;
                         break;
                     case Gtype.rep: //размножение
@@ -1769,6 +1845,7 @@ namespace GOB_Life_Wpf
                             main.cmap[tx, ty] = new Bot(tx, ty, (float)Formuls.Compute("childEn", param.ToArray()), this);
                             main.bqueue.Add(main.cmap[tx, ty]);
                             nrj += (float)Formuls.Compute("dupEn", param.ToArray());
+                            main.oxmap[x, y] += (float)Formuls.Compute("dupOx", param.ToArray());
                         }
                         break;
 
@@ -1789,16 +1866,20 @@ namespace GOB_Life_Wpf
 
                                 nrj += (float)Formuls.Compute("sexP1En", param.ToArray());
                                 p2.nrj += (float)Formuls.Compute("sexP2En", param.ToArray());
+                                main.oxmap[x, y] += (float)Formuls.Compute("sexP1Ox", param.ToArray());
+                                main.oxmap[p2.x, p2.y] += (float)Formuls.Compute("sexP2Ox", param.ToArray());
                             }
                         }
                         break;
                     case Gtype.Rrot: //поворот 1
                         rot = (rot + 1) % 8;
                         nrj += (float)Formuls.Compute("rot1En", param.ToArray());
+                        main.oxmap[x, y] += (float)Formuls.Compute("rot1Ox", param.ToArray());
                         break;
                     case Gtype.Lrot: //поворот 2
                         rot = (rot + 7) % 8;
                         nrj += (float)Formuls.Compute("rot2En", param.ToArray());
+                        main.oxmap[x, y] += (float)Formuls.Compute("rot1Ox", param.ToArray());
                         break;
                     case Gtype.walk: //ходьба
                         if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
@@ -1808,6 +1889,7 @@ namespace GOB_Life_Wpf
                             x = tx;
                             y = ty;
                             nrj += (float)Formuls.Compute("walkEn", param.ToArray());
+                            main.oxmap[x, y] += (float)Formuls.Compute("walkOx", param.ToArray());
                         }
                         break;
                     case Gtype.atack: //атака
@@ -1819,18 +1901,21 @@ namespace GOB_Life_Wpf
 
                             param.Add(("stealedEn", dnrj));
                             nrj += (float)Formuls.Compute("deadEn", param.ToArray());
+                            main.oxmap[x, y] += (float)Formuls.Compute("deadOx", param.ToArray());
                             predation -= 0.01F;
                         }
                         if (main.fmap[tx, ty] != null)
                         {
                             param.Add(("fenergy", main.fmap[tx, ty].nrj));
                             nrj += (float)Formuls.Compute("fEatEn", param.ToArray());
+                            main.oxmap[x, y] += (float)Formuls.Compute("fEatOx", param.ToArray());
                             main.fmap[tx, ty] = null;
                             predation += 0.001F;
                         }
                         break;
                     case Gtype.suicide: //суицид
                         main.fmap[x, y] = new Food(x, y, (float)Formuls.Compute("sdeadEn", param.ToArray()));
+                        main.oxmap[x, y] += (float)Formuls.Compute("sdeadOx", param.ToArray());
                         main.cmap[x, y] = null;
                         return;
                     case Gtype.recomb:
@@ -1846,6 +1931,7 @@ namespace GOB_Life_Wpf
 
                             param.Add(("genL", gen.Length));
                             nrj += (float)Formuls.Compute("recombEn", param.ToArray());
+                            main.oxmap[x, y] += (float)Formuls.Compute("recombOx", param.ToArray());
                         }
                         break;
                 }

@@ -27,23 +27,25 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <Label x:Name="simInfoText" Grid.Row="0"></Label>
+            <Label x:Name="simInfoText" Grid.Row="0">Симуляция не запущена</Label>
             <Label Grid.Row="1">Режим отображения:</Label>
-            <ComboBox x:Name="vizMode" Grid.Row="2" Margin="5,5,5,10" SelectedIndex="0">
+            <ComboBox x:Name="vizMode" Grid.Row="2" Margin="5,5,5,5" SelectedIndex="0">
                 <ComboBoxItem Content="родня"/>
                 <ComboBoxItem Content="энергия"/>
                 <ComboBoxItem Content="хищники"/>
                 <ComboBoxItem Content="возраст"/>
                 <ComboBoxItem Content="потомки"/>
             </ComboBox>
-            <Button Grid.Row="3" Margin="5,0,5,10" Click="Button_Click" Content="Запуск симуляции"/>
-            <Label Grid.Row="4">Сид:</Label>
-            <TextBox x:Name="seedInput" Grid.Row="5" Margin="5,0,5,10"></TextBox>
-            <Label Grid.Row="6">Размер поля:</Label>
-            <Grid Grid.Row="7">
+            <CheckBox x:Name="oxRengerBox" Grid.Row="3" IsChecked="False">Отображать кислород</CheckBox>
+            <Button Grid.Row="4" Margin="5,5,5,10" Click="Button_Click" Content="Запуск симуляции"/>
+            <Label Grid.Row="5">Сид:</Label>
+            <TextBox x:Name="seedInput" Grid.Row="6" Margin="5,0,5,10"></TextBox>
+            <Label Grid.Row="7">Размер поля:</Label>
+            <Grid Grid.Row="8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -52,20 +54,20 @@
                 <TextBox x:Name="mapWidthInput" Grid.Column="0" Margin="5,0,5,0" Text="ширина"/>
                 <TextBox x:Name="mapHeightInput" Grid.Column="2" Margin="5,0,5,0" Text="высота"/>
             </Grid>
-            <Label Grid.Row="8">Действие мыши:</Label>
-            <ComboBox x:Name="mouseAction" Grid.Row="9" Margin="5,5,5,10" SelectedIndex="0">
+            <Label Grid.Row="9">Действие мыши:</Label>
+            <ComboBox x:Name="mouseAction" Grid.Row="10" Margin="5,5,5,10" SelectedIndex="0">
                 <ComboBoxItem Content="осмотреть бота"/>
                 <ComboBoxItem Content="убить бота"/>
                 <ComboBoxItem Content="создать еду"/>
                 <ComboBoxItem Content="очистить клетку"/>
                 <ComboBoxItem Content="вставить бота с днк"/>
             </ComboBox>
-            <Button Grid.Row="10" Margin="5,0,5,10" Content="Очистить запись" Click="ClearRecord"/>
-            <CheckBox x:Name="RecordingCheck" Grid.Row="11">Запись видео</CheckBox>
-            <Label Grid.Row="12">Как часто сохранять кадры:</Label>
-            <TextBox x:Name="rocordInput" Grid.Row="13" Margin="5,0,5,10" Text="10"></TextBox>
+            <Button Grid.Row="11" Margin="5,0,5,5" Content="Очистить запись" Click="ClearRecord"/>
+            <CheckBox x:Name="RecordingCheck" Grid.Row="12">Запись видео</CheckBox>
+            <Label Grid.Row="13">Как часто сохранять кадры:</Label>
+            <TextBox x:Name="rocordInput" Grid.Row="14" Margin="5,0,5,10" Text="3"></TextBox>
 
-            <Grid Grid.Row="15" Margin="0,10,0,0">
+            <Grid Grid.Row="16" Margin="0,10,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
