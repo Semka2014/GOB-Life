@@ -40,7 +40,7 @@ namespace GOB_Life_Wpf
         private string generate = "";
         private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
 
-        private async void Button_Click(object sender, RoutedEventArgs e)
+        private async void StartSim_Click(object sender, RoutedEventArgs e)
         {
             await semaphore.WaitAsync();
             try
@@ -280,12 +280,13 @@ namespace GOB_Life_Wpf
                             break;
                     }
 
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        int renW = (int)MapBorder.ActualWidth;
-                        int renH = (int)MapBorder.ActualHeight;
-                        RenderImage(Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value), renW, renH, MapBox);
-                    });
+                    if (!isRunning)
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            int renW = (int)MapBorder.ActualWidth;
+                            int renH = (int)MapBorder.ActualHeight;
+                            RenderImage(Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value), renW, renH, MapBox);
+                        });
                 }
             }
             catch (Exception ex)
@@ -322,10 +323,165 @@ namespace GOB_Life_Wpf
                 File.Delete(file);
             }
         }
+
+        private void Settings_Click(object sender, RoutedEventArgs e)
+        {
+            SettingsWin win = new SettingsWin();
+            win.Show();
+            win.Activate();
+        }
+
+        private void vizMode_DropDownClosed(object sender, EventArgs e)
+        {
+            if (!isRunning)
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    int renW = (int)MapBorder.ActualWidth;
+                    int renH = (int)MapBorder.ActualHeight;
+                    RenderImage(Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value), renW, renH, MapBox);
+                });
+        }
     }
 
     static class Simulation
     {
+        public static void Save(string path)
+        {
+            using (StreamWriter writer = new StreamWriter(path, false))
+            {
+                writer.WriteLine($"{main.width} {main.height} {main.step} 0");
+                foreach (Food f in main.fmap)
+                {
+                    if (f == null)
+                        continue;
+                    writer.WriteLine($"{f.x} {f.y} {f.nrj}");
+                }//1
+                writer.WriteLine("bots");
+                foreach (Bot b in main.queue)
+                {
+                    writer.WriteLine($"{b.x} {b.y} {b.nrj} {b.gen} {b.fgen} {b.btime} {b.predation} {b.mut} {b.rot}");
+                    StringBuilder sb = new StringBuilder();
+
+                    Dictionary<int, Gate> NGates = new Dictionary<int, Gate>();
+
+                    for (int i = 0; i < b.DNA.Length; i++)
+                    {
+                        sb.Append($"{(int)b.DNA[i]} ");
+                    }
+                    sb.Append("_");
+                    for (int i = 0; i < b.FDNA.Length; i++)
+                    {
+                        sb.Append($"{(int)b.FDNA[i]} ");
+                    }
+                    writer.WriteLine(sb.ToString());
+                    sb.Clear();
+
+                    for (int i = 0; i < b.gates.Count; i++)
+                    {
+                        Gate g = b.gates[i];
+                        sb.Append($"{(int)g.type}_");
+
+                        for (int j = 0; j < g.input.Length; j++)
+                        {
+                            sb.Append($"{g.input[j].f} {b.gates.IndexOf(g.input[j].A)} {b.gates.IndexOf(g.input[j].B)} ");
+                        }
+                        sb.Append("_");
+                        for (int j = 0; j < g.output.Length; j++)
+                        {
+                            sb.Append($"{g.output[j].f} {b.gates.IndexOf(g.output[j].A)} {b.gates.IndexOf(g.output[j].B)} ");
+                        }
+                        sb.Append("/");
+                    }
+                    writer.WriteLine(sb.ToString());
+                }//3
+                writer.WriteLine("oxygen");
+                foreach (float o in main.oxmap)
+                {
+                    writer.Write(o);
+                }
+            }
+        }
+        /*
+        public static void Load(string path)
+        {
+            using (StreamReader reader = new StreamReader(path))
+            {
+                string[] info = reader.ReadLine().Split();
+                main.width = int.Parse(info[0]);
+                main.height = int.Parse(info[1]);
+                main.step = int.Parse(info[2]);
+                //seed = int.Parse(info[3]);
+
+                string s = reader.ReadLine();
+                while (s != "bots")
+                {
+                    string[] ss = s.Split();
+                    int x = int.Parse(ss[0]);
+                    int y = int.Parse(ss[1]);
+
+                    main.fmap[x, y] = new Food(x, y, float.Parse(ss[2]));
+                    s = reader.ReadLine();
+                }
+
+                s = reader.ReadLine();
+                while (s != "oxygen")
+                {
+                    string[] ss = s.Split();
+                    int x = int.Parse(ss[0]);
+                    int y = int.Parse(ss[1]);
+
+                    main.cmap[x, y] = new Bot(x, y, float.Parse(ss[2]));
+                    
+
+                    main.fmap[x, y] = new Food(x, y, float.Parse(ss[2]));
+                    s = reader.ReadLine();
+                }
+
+                foreach (Bot b in main.queue)
+                {
+                    writer.WriteLine($"{b.x} {b.y} {b.nrj} {b.gen} {b.fgen} {b.btime} {b.predation} {b.mut} {b.rot}");
+                    StringBuilder sb = new StringBuilder();
+
+                    Dictionary<int, Gate> NGates = new Dictionary<int, Gate>();
+
+                    for (int i = 0; i < b.DNA.Length; i++)
+                    {
+                        sb.Append($"{(int)b.DNA[i]} ");
+                    }
+                    sb.Append("_");
+                    for (int i = 0; i < b.FDNA.Length; i++)
+                    {
+                        sb.Append($"{(int)b.FDNA[i]} ");
+                    }
+                    writer.WriteLine(sb.ToString());
+                    sb.Clear();
+
+                    for (int i = 0; i < b.gates.Count; i++)
+                    {
+                        Gate g = b.gates[i];
+                        sb.Append($"{(int)g.type}_");
+
+                        for (int j = 0; j < g.input.Length; j++)
+                        {
+                            sb.Append($"{g.input[j].f} {b.gates.IndexOf(g.input[j].A)} {b.gates.IndexOf(g.input[j].B)} ");
+                        }
+                        sb.Append("_");
+                        for (int j = 0; j < g.output.Length; j++)
+                        {
+                            sb.Append($"{g.output[j].f} {b.gates.IndexOf(g.output[j].A)} {b.gates.IndexOf(g.output[j].B)} ");
+                        }
+                        sb.Append("/");
+                    }
+                    writer.WriteLine(sb.ToString());
+                }//3
+                writer.WriteLine("oxygen");
+                foreach (float o in main.oxmap)
+                {
+                    writer.Write(o);
+                }
+            }
+        }
+        */
         private static List<T[]> SplitByElement<T>(T[] array, T delimiter)
         {
             List<T[]> result = new List<T[]>();
@@ -1154,6 +1310,9 @@ namespace GOB_Life_Wpf
                         output = new Link[1];
                         break;
                     case Gtype.recomb:
+                        input = new Link[2];
+                        output = new Link[0];
+                        break;
                     case Gtype.suicide:
                     case Gtype.photosyntes:
                     case Gtype.atack:
@@ -1178,7 +1337,7 @@ namespace GOB_Life_Wpf
                 }
             }
 
-            public float Compute()
+            public float[] Compute()
             {
                 switch (type)
                 {
@@ -1250,9 +1409,9 @@ namespace GOB_Life_Wpf
                 }
 
                 if (input.Length == 0)
-                    return -1;
+                    return null;
 
-                return input[0].f;
+                return Array.ConvertAll(input, x => x.f);
             }
         }
 
@@ -1365,9 +1524,9 @@ namespace GOB_Life_Wpf
         public static class main
         {
             public static int width = 350, height = 200;
-            public static Bot[,] cmap = new Bot[width, height];
-            public static Food[,] fmap = new Food[width, height];
-            public static float[,] oxmap = new float[width, height];
+            public static Bot[,] cmap;
+            public static Food[,] fmap;
+            public static float[,] oxmap;
 
             public static List<Bot> queue = new List<Bot>();
             public static List<Bot> bqueue = new List<Bot>();
@@ -1381,6 +1540,7 @@ namespace GOB_Life_Wpf
                 step = 0;
                 cmap = new Bot[width, height];
                 fmap = new Food[width, height];
+                oxmap = new float[width, height];
                 queue.Clear();
 
                 for (int x = 0; x < width; x++)
@@ -1635,8 +1795,8 @@ namespace GOB_Life_Wpf
             public int x, y; //сколько пропускать нуклеотидов (для визуализации)
             private int dx = 1;
             private int dy = 1; //направление поворота
-            private int mut; //сколько мутаций было
-            private int rot; //поворот
+            public int mut { get; private set; } //сколько мутаций было
+            public int rot { get; private set; } //поворот
             public int btime { get; private set; }
             public int gen, fgen; //ген и ген отца
             public float nrj;
@@ -1728,7 +1888,7 @@ namespace GOB_Life_Wpf
                 }
             } //создание мозга
 
-            private Gtype Think(out float signal)
+            private Gtype Think(out float[] signals)
             {
                 List<Gate> queue = new List<Gate>();
 
@@ -1747,16 +1907,53 @@ namespace GOB_Life_Wpf
                 for (int i = queue.Count - 1; i >= 0; i--) //сворачиваем очередь
                 {
                     var gate = queue[i];
-                    signal = gate.Compute();
-                    if (signal > 0 && main.exp.Contains(gate.type)) //выполнение действия
-                        return gate.type;
+                    signals = gate.Compute();
+                    if (signals != null)
+                        if (signals[0] > 0 && main.exp.Contains(gate.type)) //выполнение действия
+                            return gate.type;
                 }
 
-                signal = 0;
+                signals = null;
                 return Gtype.wait;
             } //вызывает гейты в нужном порядке
             public void Init()
             {
+                switch (rot)
+                {
+                    case 0:
+                        dx = 1;
+                        dy = 0;
+                        break;
+                    case 1:
+                        dx = 1;
+                        dy = 1;
+                        break;
+                    case 2:
+                        dx = 0;
+                        dy = 1;
+                        break;
+                    case 3:
+                        dx = -1;
+                        dy = 1;
+                        break;
+                    case 4:
+                        dx = -1;
+                        dy = 0;
+                        break;
+                    case 5:
+                        dx = -1;
+                        dy = -1;
+                        break;
+                    case 6:
+                        dx = 0;
+                        dy = -1;
+                        break;
+                    case 7:
+                        dx = 1;
+                        dy = -1;
+                        break;
+                } //rotating
+
                 List<(string, double)> param = new List<(string, double)>
                 {
                 ("energy", nrj),
@@ -1831,7 +2028,7 @@ namespace GOB_Life_Wpf
                     }
                 } //обновление сенсоров
 
-                switch (Think(out float signal))
+                switch (Think(out float[] signals))
                 {
                     case Gtype.photosyntes: //фотосинтез
                         nrj += (float)Formuls.Compute("photoEn", param.ToArray());
@@ -1924,7 +2121,8 @@ namespace GOB_Life_Wpf
                             Gtype[][] dna1 = SplitByElement(DNA, Gtype.start).ToArray();
                             List<Gtype[]> dna2 = SplitByElement(main.cmap[tx, ty].DNA, Gtype.start);
                             int maxL = Math.Max(dna1.Length, dna2.Count);
-                            int adr = Math.Abs((int)Math.Round(signal * maxL) + maxL);
+                            int adr = Math.Abs((int)Math.Round(signals[1] * maxL) + maxL);
+
                             Gtype[] gen = dna1[dna1.Length % dna1.Length];
                             dna2.Insert(adr % dna2.Count, gen);
                             main.cmap[tx, ty].DNA = CombineWithDelimiter(dna2.ToArray(), Gtype.start);
@@ -1935,42 +2133,6 @@ namespace GOB_Life_Wpf
                         }
                         break;
                 }
-
-                switch (rot)
-                {
-                    case 0:
-                        dx = 1;
-                        dy = 0;
-                        break;
-                    case 1:
-                        dx = 1;
-                        dy = 1;
-                        break;
-                    case 2:
-                        dx = 0;
-                        dy = 1;
-                        break;
-                    case 3:
-                        dx = -1;
-                        dy = 1;
-                        break;
-                    case 4:
-                        dx = -1;
-                        dy = 0;
-                        break;
-                    case 5:
-                        dx = -1;
-                        dy = -1;
-                        break;
-                    case 6:
-                        dx = 0;
-                        dy = -1;
-                        break;
-                    case 7:
-                        dx = 1;
-                        dy = -1;
-                        break;
-                } //rotating
 
                 main.bqueue.Add(this);
             }
