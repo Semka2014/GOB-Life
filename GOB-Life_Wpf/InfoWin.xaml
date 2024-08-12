@@ -18,7 +18,7 @@
         </Border>
 
         <!-- Нижняя часть с текстовым боксом и кнопкой -->
-        <Grid Grid.Row="2" Margin="5">
+        <Grid Grid.Row="2" Margin="0,5,0,5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>

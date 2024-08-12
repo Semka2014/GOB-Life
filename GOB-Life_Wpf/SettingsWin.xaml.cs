@@ -50,7 +50,7 @@ namespace GOB_Life_Wpf
                     if (comands[i][0] == '#')
                         continue;
 
-                    string[] cmd = comands[i].Split(new string[] { ", " }, StringSplitOptions.None);
+                    string[] cmd = comands[i].Split(new string[] { "; " }, StringSplitOptions.None);
                     string topText = "", editText, bottomText = "";
 
                     if (comands[i - 1].Length > 0)
@@ -176,6 +176,7 @@ namespace GOB_Life_Wpf
                 comands[sformuls[tb]] = $"{snames[sformuls[tb]]}, {tb.Text}";
             }
             File.WriteAllLines("formuls.txt", comands, Encoding.Default);
+            Close();
         }
     }
 }

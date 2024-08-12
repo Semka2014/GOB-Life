@@ -1,10 +1,10 @@
 ﻿using NCalc;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,7 +23,6 @@ namespace GOB_Life_Wpf
         {
             InitializeComponent();
             Visualize.LoadGradients();
-            Formuls.Load();
         }
 
         public static void RenderImage(byte[] pixelData, int width, int height, Image targetImage)
@@ -51,7 +50,7 @@ namespace GOB_Life_Wpf
                     main.height = h;
                 }
 
-                if (generate == seedInput.Text)
+                if (generate == seedInput.Text || seedInput.Text == "")
                 {
                     generate = seedInput.Text = main.rnd.Next(int.MinValue, int.MaxValue).ToString();
                 }
@@ -62,7 +61,7 @@ namespace GOB_Life_Wpf
 
                 main.rnd = new Random(int.Parse(seedInput.Text));
 
-                await Task.Run(() => main.RandomFill());
+                await Task.Run(() => { Formuls.Load(); main.RandomFill(); });
 
                 if (!isRunning)
                 {
@@ -133,7 +132,7 @@ namespace GOB_Life_Wpf
             }
         }
 
-        private async void pause_Click(object sender, RoutedEventArgs e)
+        private async void Pause_Click(object sender, RoutedEventArgs e)
         {
             await semaphore.WaitAsync();
             try
@@ -155,7 +154,7 @@ namespace GOB_Life_Wpf
             }
         }
 
-        private async void step_Click(object sender, RoutedEventArgs e)
+        private async void Step_Click(object sender, RoutedEventArgs e)
         {
             await semaphore.WaitAsync();
             try
@@ -331,7 +330,7 @@ namespace GOB_Life_Wpf
             win.Activate();
         }
 
-        private void vizMode_DropDownClosed(object sender, EventArgs e)
+        private void VizMode_DropDownClosed(object sender, EventArgs e)
         {
             if (!isRunning)
                 Application.Current.Dispatcher.Invoke(() =>
@@ -394,11 +393,13 @@ namespace GOB_Life_Wpf
                     }
                     writer.WriteLine(sb.ToString());
                 }//3
+                /*
                 writer.WriteLine("oxygen");
-                foreach (float o in main.oxmap)
+                foreach (double o in main.oxmap)
                 {
                     writer.Write(o);
                 }
+                */
             }
         }
         /*
@@ -419,7 +420,7 @@ namespace GOB_Life_Wpf
                     int x = int.Parse(ss[0]);
                     int y = int.Parse(ss[1]);
 
-                    main.fmap[x, y] = new Food(x, y, float.Parse(ss[2]));
+                    main.fmap[x, y] = new Food(x, y, double.Parse(ss[2]));
                     s = reader.ReadLine();
                 }
 
@@ -430,10 +431,10 @@ namespace GOB_Life_Wpf
                     int x = int.Parse(ss[0]);
                     int y = int.Parse(ss[1]);
 
-                    main.cmap[x, y] = new Bot(x, y, float.Parse(ss[2]));
+                    main.cmap[x, y] = new Bot(x, y, double.Parse(ss[2]));
                     
 
-                    main.fmap[x, y] = new Food(x, y, float.Parse(ss[2]));
+                    main.fmap[x, y] = new Food(x, y, double.Parse(ss[2]));
                     s = reader.ReadLine();
                 }
 
@@ -475,7 +476,7 @@ namespace GOB_Life_Wpf
                     writer.WriteLine(sb.ToString());
                 }//3
                 writer.WriteLine("oxygen");
-                foreach (float o in main.oxmap)
+                foreach (double o in main.oxmap)
                 {
                     writer.Write(o);
                 }
@@ -564,6 +565,7 @@ namespace GOB_Life_Wpf
             gen,
             fgen,
             mut,
+            listnr,
             //deistvia...
             wait,
             photosyntes,
@@ -575,6 +577,7 @@ namespace GOB_Life_Wpf
             atack,
             suicide,
             recomb,
+            trnsmt,
             //constants...
             c0,
             c1,
@@ -801,16 +804,16 @@ namespace GOB_Life_Wpf
                 switch (type)
                 {
                     case Gtype.recomb:
-                        caption = "rcb";
+                        caption = "♻️";
                         break;
                     case Gtype.gen:
-                        caption = "gn";
+                        caption = "🧬";
                         break;
                     case Gtype.fgen:
-                        caption = "fgn";
+                        caption = "F🧬";
                         break;
                     case Gtype.mut:
-                        caption = "mut";
+                        caption = "⚠️";
                         break;
                     case Gtype.posx:
                         caption = "x";
@@ -819,37 +822,19 @@ namespace GOB_Life_Wpf
                         caption = "y";
                         break;
                     case Gtype.time:
-                        caption = "t";
-                        break;
-                    case Gtype.start:
-                        caption = "st";
-                        break;
-                    case Gtype.stop:
-                        caption = "sp";
-                        break;
-                    case Gtype.input:
-                        caption = "in";
-                        break;
-                    case Gtype.output:
-                        caption = "out";
-                        break;
-                    case Gtype.skip:
-                        caption = "sk";
-                        break;
-                    case Gtype.undo:
-                        caption = "un";
+                        caption = "⌚️";
                         break;
                     case Gtype.add:
-                        caption = "+";
+                        caption = "➕";
                         break;
                     case Gtype.sub:
-                        caption = "-";
+                        caption = "➖";
                         break;
                     case Gtype.mul:
-                        caption = "*";
+                        caption = "✖️";
                         break;
                     case Gtype.div:
-                        caption = "/";
+                        caption = "➗";
                         break;
                     case Gtype.grate:
                         caption = ">";
@@ -867,7 +852,7 @@ namespace GOB_Life_Wpf
                         caption = "mod";
                         break;
                     case Gtype.memory:
-                        caption = "mem";
+                        caption = "💾";
                         break;
                     case Gtype.and:
                         caption = "and";
@@ -879,55 +864,59 @@ namespace GOB_Life_Wpf
                         caption = "xor";
                         break;
                     case Gtype.dup2:
-                        caption = "";
-                        break;
                     case Gtype.dup3:
                         caption = "";
                         break;
                     case Gtype.rand:
-                        caption = "rnd";
+                        caption = "🎲";
                         break;
                     case Gtype.btime:
-                        caption = "bt";
+                        caption = "✨⌚️";
                         break;
                     case Gtype.bot:
-                        caption = "bt";
+                        caption = "🦠";
                         break;
                     case Gtype.rbot:
-                        caption = "rbt";
+                        caption = "R🦠";
                         break;
                     case Gtype.food:
-                        caption = "fd";
+                        caption = "🍽";
                         break;
                     case Gtype.nrj:
-                        caption = "en";
+                        caption = "⚡️";
                         break;
                     case Gtype.wait:
-                        caption = "w";
+                        caption = "💤";
                         break;
                     case Gtype.photosyntes:
-                        caption = "ph";
+                        caption = "🌿";
                         break;
                     case Gtype.rep:
-                        caption = "rp";
+                        caption = "👨‍👦";
                         break;
                     case Gtype.sex:
-                        caption = "sex";
+                        caption = "👨‍👩‍👧";
                         break;
                     case Gtype.Rrot:
-                        caption = "rtrn";
+                        caption = "↪";
                         break;
                     case Gtype.Lrot:
-                        caption = "ltrn";
+                        caption = "↩";
                         break;
                     case Gtype.walk:
-                        caption = "wk";
+                        caption = "🚶‍";
                         break;
                     case Gtype.atack:
-                        caption = "atk";
+                        caption = "⚔️";
                         break;
                     case Gtype.suicide:
-                        caption = "su";
+                        caption = "💀";
+                        break;
+                    case Gtype.trnsmt:
+                        caption = "🔊";
+                        break;
+                    case Gtype.listnr:
+                        caption = "👂";
                         break;
                     case Gtype.c0:
                         caption = "0";
@@ -945,7 +934,7 @@ namespace GOB_Life_Wpf
                         caption = "11";
                         break;
                     default:
-                        caption = "z";
+                        caption = "?";
                         break;
                 }
                 return caption;
@@ -1248,7 +1237,7 @@ namespace GOB_Life_Wpf
                     {
                         for (int y = 0; y < main.height; y++)
                         {
-                            ColorFromGradient(main.oxmap[x, y], 0, 1, 3, out byte a, out byte r, out byte g, out byte b);
+                            ColorFromGradient(main.oxymap[x, y] / (main.oxymap[x, y] + main.crbmap[x, y]), 0, 1, 3, out byte a, out byte r, out byte g, out byte b);
                             img.DrawRectangle(x * c, y * c, c, c, Color.FromArgb(a, r, g, b), true);
                         }
                     }
@@ -1306,9 +1295,12 @@ namespace GOB_Life_Wpf
                     case Gtype.bot:
                     case Gtype.time:
                     case Gtype.rand:
+                    case Gtype.listnr:
                         input = new Link[0];
                         output = new Link[1];
                         break;
+
+                    case Gtype.trnsmt:
                     case Gtype.recomb:
                         input = new Link[2];
                         output = new Link[0];
@@ -1337,7 +1329,7 @@ namespace GOB_Life_Wpf
                 }
             }
 
-            public float[] Compute()
+            public double[] Compute()
             {
                 switch (type)
                 {
@@ -1419,7 +1411,7 @@ namespace GOB_Life_Wpf
         {
             public Gate A;
             public Gate B;
-            public float f;
+            public double f;
 
             public Link(Gate A, Gate B)
             {
@@ -1435,6 +1427,8 @@ namespace GOB_Life_Wpf
 
             public static void Load()
             {
+                customFunctions.Clear();
+                formuls.Clear();
                 string[] comands = File.ReadAllLines("formuls.txt");
                 for (int i = 0; i < comands.Length; i++)
                 {
@@ -1443,7 +1437,7 @@ namespace GOB_Life_Wpf
                     if (comands[i][0] == '#')
                         continue;
 
-                    string[] cmd = comands[i].Split(new string[] { ", " }, StringSplitOptions.None);
+                    string[] cmd = comands[i].Split(new string[] { "; " }, StringSplitOptions.None);
 
                     switch (cmd[0])
                     {
@@ -1526,33 +1520,76 @@ namespace GOB_Life_Wpf
             public static int width = 350, height = 200;
             public static Bot[,] cmap;
             public static Food[,] fmap;
-            public static float[,] oxmap;
+            public static double[,] oxymap, crbmap;
 
             public static List<Bot> queue = new List<Bot>();
             public static List<Bot> bqueue = new List<Bot>();
 
             public static Random rnd = new Random();
             public static int step;
-            public static Gtype[] exp = { Gtype.wait, Gtype.photosyntes, Gtype.rep, Gtype.sex, Gtype.Rrot, Gtype.Lrot, Gtype.walk, Gtype.atack, Gtype.suicide, Gtype.recomb };
+            public static Gtype[] exp = { Gtype.wait, Gtype.photosyntes, Gtype.rep, Gtype.sex, Gtype.Rrot, Gtype.Lrot, Gtype.walk, Gtype.atack, Gtype.suicide, Gtype.recomb, Gtype.trnsmt };
+
+            private static void Distribute(ref double[,] gasmap)
+            {
+                double[,] bgasmap = new double[width, height];
+                for (int x = 0; x < width; x++)
+                {
+                    for (int y = 0; y < height; y++)
+                    {
+                        int div = 0;
+
+                        for (int xx = -1; xx <= 1; xx++)
+                        {
+                            for (int yy = -1; yy <= 1; yy++)
+                            {
+                                int tx = (x + xx + width) % width;
+                                int ty = (y + yy + height) % height;
+                                if ((cmap[tx, ty] == null && fmap[tx, ty] == null) || (cmap[x, y] == null && fmap[x, y] == null) || (tx == x && ty == y))
+                                {
+                                    div++;
+                                }
+                            }
+                        }
+
+                        double deltaGas = gasmap[x, y] / div;
+
+                        for (int xx = -1; xx <= 1; xx++)
+                        {
+                            for (int yy = -1; yy <= 1; yy++)
+                            {
+                                int tx = (x + xx + width) % width;
+                                int ty = (y + yy + height) % height;
+                                if ((cmap[tx, ty] == null && fmap[tx, ty] == null) || (cmap[x, y] == null && fmap[x, y] == null) || (tx == x && ty == y))
+                                {
+                                    bgasmap[tx, ty] += deltaGas;
+                                }
+                            }
+                        }
+                    }
+                }
+                gasmap = bgasmap;
+            }
 
             public static void RandomFill()
             {
                 step = 0;
                 cmap = new Bot[width, height];
                 fmap = new Food[width, height];
-                oxmap = new float[width, height];
+                oxymap = new double[width, height];
+                crbmap = new double[width, height];
+
                 queue.Clear();
 
                 for (int x = 0; x < width; x++)
                 {
                     for (int y = 0; y < height; y++)
                     {
-                        if (rnd.Next(0, 100) < 70)
+                        if (rnd.Next(0, 100) < 50)
                         {
                             cmap[x, y] = new Bot(x, y, 10);
                             queue.Add(cmap[x, y]);
                         }
-                        else if (rnd.Next(0, 100) < 50)
+                        else if (rnd.Next(0, 100) < 10)
                             fmap[x, y] = new Food(x, y, 10);
                     }
                 }
@@ -1561,7 +1598,8 @@ namespace GOB_Life_Wpf
                 {
                     for (int y = 0; y < height; y++)
                     {
-                        oxmap[x, y] = rnd.Next(60, 100) / 100F;
+                        oxymap[x, y] = rnd.Next(10, 50);
+                        crbmap[x, y] = rnd.Next(50, 200);
                     }
                 }
             }
@@ -1575,39 +1613,14 @@ namespace GOB_Life_Wpf
                 queue = new List<Bot>(bqueue);
                 bqueue.Clear();
 
-                float[,] boxmap = new float[width, height];
-                for (int x = 0; x < width; x++)
-                {
-                    for (int y = 0; y < height; y++)
-                    {
-                        int div = 0;
-                        for (int xx = -1; xx <= 1; xx++)
-                        {
-                            for (int yy = -1; yy <= 1; yy++)
-                            {
-                                int tx = (x + xx + width) % width;
-                                int ty = (y + yy + height) % height;
-                                if ((cmap[tx, ty] == null && fmap[tx, ty] == null) || (cmap[x, y] == null && fmap[x, y] == null) || (tx == x && ty == y))
-                                {
-                                    div++;
-                                }
-                            }
-                        }
-                        for (int xx = -1; xx <= 1; xx++)
-                        {
-                            for (int yy = -1; yy <= 1; yy++)
-                            {
-                                int tx = (x + xx + width) % width;
-                                int ty = (y + yy + height) % height;
-                                if ((cmap[tx, ty] == null && fmap[tx, ty] == null) || (cmap[x, y] == null && fmap[x, y] == null) || (tx == x && ty == y))
-                                {
-                                    boxmap[tx, ty] += oxmap[x, y] / div;
-                                }
-                            }
-                        }
-                    }
-                }
-                oxmap = boxmap;
+                Distribute(ref crbmap);
+                Distribute(ref oxymap);
+                foreach (double g in crbmap)
+                    if (g == double.NaN)
+                        MessageBox.Show("", "");
+                foreach (double g in oxymap)
+                    if (g == double.NaN)
+                        MessageBox.Show("", "");
 
                 step++;
             }
@@ -1617,8 +1630,8 @@ namespace GOB_Life_Wpf
         public class Food
         {
             public int x, y;
-            public float nrj;
-            public Food(int x, int y, float nrj)
+            public double nrj;
+            public Food(int x, int y, double nrj)
             {
                 this.x = x;
                 this.y = y;
@@ -1628,7 +1641,7 @@ namespace GOB_Life_Wpf
 
         public class Bot
         {
-            public Bot(int x, int y, float nrj)
+            public Bot(int x, int y, double nrj)
             {
                 this.x = x;
                 this.y = y;
@@ -1647,7 +1660,7 @@ namespace GOB_Life_Wpf
                 Translation();
             }
 
-            public Bot(int x, int y, float nrj, int gen, Gtype[] DNA)
+            public Bot(int x, int y, double nrj, int gen, Gtype[] DNA)
             {
                 this.x = x;
                 this.y = y;
@@ -1737,7 +1750,7 @@ namespace GOB_Life_Wpf
                 return CombineWithDelimiter(dna, Gtype.start);
             }
 
-            public Bot(int x, int y, float nrj, Bot f)
+            public Bot(int x, int y, double nrj, Bot f)
             {
                 this.x = x;
                 this.y = y;
@@ -1764,7 +1777,7 @@ namespace GOB_Life_Wpf
                 Translation();
             }
 
-            public Bot(int x, int y, float nrj, Bot p1, Bot p2)
+            public Bot(int x, int y, double nrj, Bot p1, Bot p2)
             {
                 //условно p1 - отец - инициатор, p2 - мать - создаёт бота
                 this.x = x;
@@ -1795,15 +1808,84 @@ namespace GOB_Life_Wpf
             public int x, y; //сколько пропускать нуклеотидов (для визуализации)
             private int dx = 1;
             private int dy = 1; //направление поворота
+
+            double recSignal = -1;
             public int mut { get; private set; } //сколько мутаций было
             public int rot { get; private set; } //поворот
             public int btime { get; private set; }
             public int gen, fgen; //ген и ген отца
-            public float nrj;
-            public float predation { get; private set; } = 0.5F;
+            public double nrj;
+            public double predation { get; private set; } = 0.5F;
             public List<Gate> gates = new List<Gate>();
             public Gtype[] DNA, FDNA;
             private static readonly Gtype[] coddons = { Gtype.start, Gtype.input, Gtype.output, Gtype.stop, Gtype.skip, Gtype.undo, Gtype.empty }; //специальный кодоны
+
+            // Проверка уровня кислорода
+            bool IsOxygenLevelValid(double delta)
+            {
+                double oxFact = main.oxymap[x, y] / (main.oxymap[x, y] + main.crbmap[x, y]) + delta;
+
+                double currentOxygen = main.oxymap[x, y];
+                double currentCarbonDioxide = main.crbmap[x, y];
+
+                double newOxygen = currentOxygen + delta;
+                double newCarbonDioxide = currentCarbonDioxide - delta;
+
+                double newTotal = newOxygen + newCarbonDioxide;
+                double targetOxygen = oxFact * newTotal;
+
+                return targetOxygen > 0 && newTotal - targetOxygen > 0 && oxFact > 0;
+            }
+            bool IsOxygenLevelValid(double delta, int x, int y)
+            {
+                double oxFact = main.oxymap[x, y] / (main.oxymap[x, y] + main.crbmap[x, y]) + delta;
+
+                double currentOxygen = main.oxymap[x, y];
+                double currentCarbonDioxide = main.crbmap[x, y];
+
+                double newOxygen = currentOxygen + delta;
+                double newCarbonDioxide = currentCarbonDioxide - delta;
+
+                double newTotal = newOxygen + newCarbonDioxide;
+                double targetOxygen = oxFact * newTotal;
+
+                return targetOxygen > 0 && newTotal - targetOxygen > 0 && oxFact > 0;
+            }
+
+            // Это временное решение
+            void UpdateOxygen(double delta)
+            {
+                double oxFact = main.oxymap[x, y] / (main.oxymap[x, y] + main.crbmap[x, y]) + delta;
+
+                double currentOxygen = main.oxymap[x, y];
+                double currentCarbonDioxide = main.crbmap[x, y];
+
+                double newOxygen = currentOxygen + delta;
+                double newCarbonDioxide = currentCarbonDioxide - delta;
+
+                double newTotal = newOxygen + newCarbonDioxide;
+                double targetOxygen = oxFact * newTotal;
+
+                main.oxymap[x, y] = targetOxygen;
+                main.crbmap[x, y] = newTotal - targetOxygen;
+            }
+            void UpdateOxygen(double delta, int x, int y)
+            {
+                double oxFact = main.oxymap[x, y] / (main.oxymap[x, y] + main.crbmap[x, y]) + delta;
+
+                double currentOxygen = main.oxymap[x, y];
+                double currentCarbonDioxide = main.crbmap[x, y];
+
+                double newOxygen = currentOxygen + delta;
+                double newCarbonDioxide = currentCarbonDioxide - delta;
+
+                double newTotal = newOxygen + newCarbonDioxide;
+                double targetOxygen = oxFact * newTotal;
+
+                main.oxymap[x, y] = targetOxygen;
+                main.crbmap[x, y] = newTotal - targetOxygen;
+            }
+
 
             public void Translation()
             {
@@ -1888,7 +1970,7 @@ namespace GOB_Life_Wpf
                 }
             } //создание мозга
 
-            private Gtype Think(out float[] signals)
+            private Gtype Think(out double[] signals)
             {
                 List<Gate> queue = new List<Gate>();
 
@@ -1918,42 +2000,6 @@ namespace GOB_Life_Wpf
             } //вызывает гейты в нужном порядке
             public void Init()
             {
-                switch (rot)
-                {
-                    case 0:
-                        dx = 1;
-                        dy = 0;
-                        break;
-                    case 1:
-                        dx = 1;
-                        dy = 1;
-                        break;
-                    case 2:
-                        dx = 0;
-                        dy = 1;
-                        break;
-                    case 3:
-                        dx = -1;
-                        dy = 1;
-                        break;
-                    case 4:
-                        dx = -1;
-                        dy = 0;
-                        break;
-                    case 5:
-                        dx = -1;
-                        dy = -1;
-                        break;
-                    case 6:
-                        dx = 0;
-                        dy = -1;
-                        break;
-                    case 7:
-                        dx = 1;
-                        dy = -1;
-                        break;
-                } //rotating
-
                 List<(string, double)> param = new List<(string, double)>
                 {
                 ("energy", nrj),
@@ -1966,21 +2012,28 @@ namespace GOB_Life_Wpf
                 ("height", main.height),
                 ("y", y),
                 ("random", main.rnd.Next(0, 1000)),
-                ("oxygen", main.oxmap[x, y])
+                ("oxygen", main.oxymap[x, y] / (main.oxymap[x, y] + main.crbmap[x, y]))
                 }; //стандартные переменные для формул
 
                 int tx = (x + dx + main.width) % main.width;
                 int ty = (y + dy + main.height) % main.height;
 
-                main.oxmap[x, y] += (float)Formuls.Compute("pasOx", param.ToArray());
-                nrj += (float)Formuls.Compute("pasEn", param.ToArray());
-                if (nrj <= 0)
+                nrj += Formuls.Compute("pasEn", param.ToArray());
+                double pasOx = Formuls.Compute("pasOx", param.ToArray());
+
+                if (nrj <= 0 || !IsOxygenLevelValid(pasOx))
                 {
                     main.cmap[x, y] = null;
-                    main.fmap[x, y] = new Food(x, y, (float)Formuls.Compute("deadEn", param.ToArray()));
-                    main.oxmap[x, y] += (float)Formuls.Compute("deadOx", param.ToArray());
+                    main.fmap[x, y] = new Food(x, y, Formuls.Compute("deadEn", param.ToArray()));
+                    double deadOx = Formuls.Compute("deadOx", param.ToArray());
+                    if (IsOxygenLevelValid(deadOx))
+                    {
+                        UpdateOxygen(deadOx);
+                    }
                     return;
                 } //смерть
+                else
+                    UpdateOxygen(pasOx);
 
                 foreach (var gate in gates)
                 {
@@ -2025,114 +2078,215 @@ namespace GOB_Life_Wpf
                         case Gtype.btime:
                             gate.output[0].f = btime;
                             break;
+                        case Gtype.listnr:
+                            gate.output[0].f = recSignal;
+                            break;
                     }
                 } //обновление сенсоров
 
-                switch (Think(out float[] signals))
-                {
-                    case Gtype.photosyntes: //фотосинтез
-                        nrj += (float)Formuls.Compute("photoEn", param.ToArray());
-                        main.oxmap[x, y] += (float)Formuls.Compute("photoOx", param.ToArray());
-                        predation += 0.01F;
-                        break;
-                    case Gtype.rep: //размножение
 
-                        if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
+                switch (Think(out double[] signals))
+                {
+                    case Gtype.photosyntes: // фотосинтез
+                        double photoOx = Formuls.Compute("photoOx", param.ToArray());
+                        if (IsOxygenLevelValid(photoOx))
                         {
-                            main.cmap[tx, ty] = new Bot(tx, ty, (float)Formuls.Compute("childEn", param.ToArray()), this);
-                            main.bqueue.Add(main.cmap[tx, ty]);
-                            nrj += (float)Formuls.Compute("dupEn", param.ToArray());
-                            main.oxmap[x, y] += (float)Formuls.Compute("dupOx", param.ToArray());
+                            nrj += Formuls.Compute("photoEn", param.ToArray());
+                            UpdateOxygen(photoOx);
+                            predation += 0.01F;
                         }
                         break;
 
-                    case Gtype.sex: //половое размножение
-                        if (main.cmap[tx, ty] != null) //есть ли второй родитель
+                    case Gtype.rep: // размножение
+                        if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
+                        {
+                            double dupOx = Formuls.Compute("dupOx", param.ToArray());
+                            if (IsOxygenLevelValid(dupOx))
+                            {
+                                main.cmap[tx, ty] = new Bot(tx, ty, Formuls.Compute("childEn", param.ToArray()), this);
+                                main.bqueue.Add(main.cmap[tx, ty]);
+                                nrj += Formuls.Compute("dupEn", param.ToArray());
+                                UpdateOxygen(dupOx);
+                            }
+                        }
+                        break;
+
+                    case Gtype.sex: // половое размножение
+                        if (main.cmap[tx, ty] != null) // есть ли второй родитель
                         {
                             Bot p2 = main.cmap[tx, ty];
                             int tx2 = (p2.x + p2.dx + main.width) % main.width;
                             int ty2 = (p2.y + p2.dy + main.height) % main.height;
 
-                            if (main.cmap[tx2, ty2] == null && main.fmap[tx2, ty2] == null) //пусто ли перед вторым родителем
+                            if (main.cmap[tx2, ty2] == null && main.fmap[tx2, ty2] == null) // пусто ли перед вторым родителем
                             {
-                                main.cmap[tx2, ty2] = new Bot(tx2, ty2, (float)Formuls.Compute("deadEn", param.ToArray()), this, p2);
-                                main.bqueue.Add(main.cmap[tx2, ty2]);
+                                double sexP1Ox = Formuls.Compute("sexP1Ox", param.ToArray());
+                                double sexP2Ox = Formuls.Compute("sexP2Ox", param.ToArray());
+                                if (IsOxygenLevelValid(sexP1Ox) && IsOxygenLevelValid(sexP2Ox, p2.x, p2.y))
+                                {
+                                    main.cmap[tx2, ty2] = new Bot(tx2, ty2, Formuls.Compute("deadEn", param.ToArray()), this, p2);
+                                    main.bqueue.Add(main.cmap[tx2, ty2]);
 
-                                param.Add(("energy2", p2.nrj));
-                                param.Add(("dnal2", p2.DNA.Length));
+                                    param.Add(("energy2", p2.nrj));
+                                    param.Add(("dnal2", p2.DNA.Length));
 
-                                nrj += (float)Formuls.Compute("sexP1En", param.ToArray());
-                                p2.nrj += (float)Formuls.Compute("sexP2En", param.ToArray());
-                                main.oxmap[x, y] += (float)Formuls.Compute("sexP1Ox", param.ToArray());
-                                main.oxmap[p2.x, p2.y] += (float)Formuls.Compute("sexP2Ox", param.ToArray());
+                                    nrj += Formuls.Compute("sexP1En", param.ToArray());
+                                    p2.nrj += Formuls.Compute("sexP2En", param.ToArray());
+                                    UpdateOxygen(sexP1Ox);
+                                    UpdateOxygen(sexP2Ox, p2.x, p2.y);
+                                }
                             }
                         }
                         break;
-                    case Gtype.Rrot: //поворот 1
-                        rot = (rot + 1) % 8;
-                        nrj += (float)Formuls.Compute("rot1En", param.ToArray());
-                        main.oxmap[x, y] += (float)Formuls.Compute("rot1Ox", param.ToArray());
-                        break;
-                    case Gtype.Lrot: //поворот 2
-                        rot = (rot + 7) % 8;
-                        nrj += (float)Formuls.Compute("rot2En", param.ToArray());
-                        main.oxmap[x, y] += (float)Formuls.Compute("rot1Ox", param.ToArray());
-                        break;
-                    case Gtype.walk: //ходьба
-                        if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
+
+                    case Gtype.Rrot: // поворот 1
+                        double rot1Ox = Formuls.Compute("rot1Ox", param.ToArray());
+                        if (IsOxygenLevelValid(rot1Ox))
                         {
-                            main.cmap[tx, ty] = main.cmap[x, y];
-                            main.cmap[x, y] = null;
-                            x = tx;
-                            y = ty;
-                            nrj += (float)Formuls.Compute("walkEn", param.ToArray());
-                            main.oxmap[x, y] += (float)Formuls.Compute("walkOx", param.ToArray());
+                            rot = (rot + 1) % 8;
+                            nrj += Formuls.Compute("rot1En", param.ToArray());
+                            UpdateOxygen(rot1Ox);
                         }
                         break;
-                    case Gtype.atack: //атака
+
+                    case Gtype.Lrot: // поворот 2
+                        double rot2Ox = Formuls.Compute("rot2Ox", param.ToArray());
+                        if (IsOxygenLevelValid(rot2Ox))
+                        {
+                            rot = (rot + 7) % 8;
+                            nrj += Formuls.Compute("rot2En", param.ToArray());
+                            UpdateOxygen(rot2Ox);
+                        }
+                        break;
+
+                    case Gtype.walk: // ходьба
+                        if (main.cmap[tx, ty] == null && main.fmap[tx, ty] == null)
+                        {
+                            double walkOx = Formuls.Compute("walkOx", param.ToArray());
+                            if (IsOxygenLevelValid(walkOx))
+                            {
+                                main.cmap[tx, ty] = main.cmap[x, y];
+                                main.cmap[x, y] = null;
+                                x = tx;
+                                y = ty;
+                                nrj += Formuls.Compute("walkEn", param.ToArray());
+                                UpdateOxygen(walkOx);
+                            }
+                        }
+                        break;
+
+                    case Gtype.atack: // атака
                         if (main.cmap[tx, ty] != null)
                         {
                             param.Add(("energy2", main.cmap[tx, ty].nrj));
-                            float dnrj = Math.Min((float)Formuls.Compute("deadEn", param.ToArray()), main.cmap[tx, ty].nrj);
-                            main.cmap[tx, ty].nrj -= (float)Formuls.Compute("deadEn", param.ToArray());
+                            double deadOx = Formuls.Compute("deadOx", param.ToArray());
+                            if (IsOxygenLevelValid(deadOx))
+                            {
+                                double dnrj = Math.Min(Formuls.Compute("deadEn", param.ToArray()), main.cmap[tx, ty].nrj);
+                                main.cmap[tx, ty].nrj -= Formuls.Compute("deadEn", param.ToArray());
 
-                            param.Add(("stealedEn", dnrj));
-                            nrj += (float)Formuls.Compute("deadEn", param.ToArray());
-                            main.oxmap[x, y] += (float)Formuls.Compute("deadOx", param.ToArray());
-                            predation -= 0.01F;
+                                param.Add(("stealedEn", dnrj));
+                                nrj += Formuls.Compute("deadEn", param.ToArray());
+                                UpdateOxygen(deadOx);
+                                predation -= 0.01F;
+                            }
                         }
                         if (main.fmap[tx, ty] != null)
                         {
                             param.Add(("fenergy", main.fmap[tx, ty].nrj));
-                            nrj += (float)Formuls.Compute("fEatEn", param.ToArray());
-                            main.oxmap[x, y] += (float)Formuls.Compute("fEatOx", param.ToArray());
-                            main.fmap[tx, ty] = null;
-                            predation += 0.001F;
+                            double fEatOx = Formuls.Compute("fEatOx", param.ToArray());
+                            if (IsOxygenLevelValid(fEatOx))
+                            {
+                                nrj += Formuls.Compute("fEatEn", param.ToArray());
+                                UpdateOxygen(fEatOx);
+                                main.fmap[tx, ty] = null;
+                                predation += 0.001F;
+                            }
                         }
                         break;
-                    case Gtype.suicide: //суицид
-                        main.fmap[x, y] = new Food(x, y, (float)Formuls.Compute("sdeadEn", param.ToArray()));
-                        main.oxmap[x, y] += (float)Formuls.Compute("sdeadOx", param.ToArray());
-                        main.cmap[x, y] = null;
+
+                    case Gtype.suicide: // суицид
+                        double sdeadOx = Formuls.Compute("sdeadOx", param.ToArray());
+                        if (IsOxygenLevelValid(sdeadOx))
+                        {
+                            main.fmap[x, y] = new Food(x, y, Formuls.Compute("sdeadEn", param.ToArray()));
+                            UpdateOxygen(sdeadOx);
+                            main.cmap[x, y] = null;
+                        }
                         return;
-                    case Gtype.recomb:
+
+                    case Gtype.recomb: // рекомбинация
                         if (main.cmap[tx, ty] != null)
                         {
-                            Gtype[][] dna1 = SplitByElement(DNA, Gtype.start).ToArray();
-                            List<Gtype[]> dna2 = SplitByElement(main.cmap[tx, ty].DNA, Gtype.start);
-                            int maxL = Math.Max(dna1.Length, dna2.Count);
-                            int adr = Math.Abs((int)Math.Round(signals[1] * maxL) + maxL);
+                            double recombOx = Formuls.Compute("recombOx", param.ToArray());
+                            if (IsOxygenLevelValid(recombOx))
+                            {
+                                Gtype[][] dna1 = SplitByElement(DNA, Gtype.start).ToArray();
+                                List<Gtype[]> dna2 = SplitByElement(main.cmap[tx, ty].DNA, Gtype.start);
+                                int maxL = Math.Max(dna1.Length, dna2.Count);
+                                int adr = Math.Abs((int)Math.Round(signals[1] * maxL) + maxL);
 
-                            Gtype[] gen = dna1[dna1.Length % dna1.Length];
-                            dna2.Insert(adr % dna2.Count, gen);
-                            main.cmap[tx, ty].DNA = CombineWithDelimiter(dna2.ToArray(), Gtype.start);
+                                Gtype[] gen = dna1[dna1.Length % dna1.Length];
+                                dna2.Insert(adr % dna2.Count, gen);
+                                main.cmap[tx, ty].DNA = CombineWithDelimiter(dna2.ToArray(), Gtype.start);
 
-                            param.Add(("genL", gen.Length));
-                            nrj += (float)Formuls.Compute("recombEn", param.ToArray());
-                            main.oxmap[x, y] += (float)Formuls.Compute("recombOx", param.ToArray());
+                                param.Add(("genL", gen.Length));
+                                nrj += Formuls.Compute("recombEn", param.ToArray());
+                                UpdateOxygen(recombOx);
+                            }
+                        }
+                        break;
+
+                    case Gtype.trnsmt: // передача сигнала
+                        if (main.cmap[tx, ty] != null)
+                        {
+                            double trnsmtOx = Formuls.Compute("trnsmtOx", param.ToArray());
+                            if (IsOxygenLevelValid(trnsmtOx))
+                            {
+                                main.cmap[tx, ty].recSignal = signals[1];
+                                nrj += Formuls.Compute("trnsmtEn", param.ToArray());
+                                UpdateOxygen(trnsmtOx);
+                            }
                         }
                         break;
                 }
+
+
+                switch (rot)
+                {
+                    case 0:
+                        dx = 1;
+                        dy = 0;
+                        break;
+                    case 1:
+                        dx = 1;
+                        dy = 1;
+                        break;
+                    case 2:
+                        dx = 0;
+                        dy = 1;
+                        break;
+                    case 3:
+                        dx = -1;
+                        dy = 1;
+                        break;
+                    case 4:
+                        dx = -1;
+                        dy = 0;
+                        break;
+                    case 5:
+                        dx = -1;
+                        dy = -1;
+                        break;
+                    case 6:
+                        dx = 0;
+                        dy = -1;
+                        break;
+                    case 7:
+                        dx = 1;
+                        dy = -1;
+                        break;
+                } //rotating
 
                 main.bqueue.Add(this);
             }
