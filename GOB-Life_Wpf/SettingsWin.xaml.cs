@@ -64,7 +64,7 @@ namespace GOB_Life_Wpf
                     switch (cmd[0])
                     {
                         case "func":
-                            editText = $"func, {cmd[2]}, {string.Join(", ", cmd.Skip(3).ToArray())}";
+                            editText = $"func; {cmd[2]}, {string.Join("; ", cmd.Skip(3).ToArray())}";
                             break;
                         default:
                             editText = cmd[1].ToString();
@@ -173,7 +173,7 @@ namespace GOB_Life_Wpf
             string[] comands = File.ReadAllLines("formuls.txt", Encoding.Default);
             foreach (TextBox tb in sformuls.Keys)
             {
-                comands[sformuls[tb]] = $"{snames[sformuls[tb]]}, {tb.Text}";
+                comands[sformuls[tb]] = $"{snames[sformuls[tb]]}; {tb.Text}";
             }
             File.WriteAllLines("formuls.txt", comands, Encoding.Default);
             Close();

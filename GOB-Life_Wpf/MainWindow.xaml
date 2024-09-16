@@ -40,7 +40,7 @@
                 <ComboBoxItem Content="возраст"/>
                 <ComboBoxItem Content="потомки"/>
             </ComboBox>
-            <CheckBox x:Name="oxRengerBox" Grid.Row="3" Margin="5,0,5,0" IsChecked="False">Отображать кислород</CheckBox>
+            <CheckBox x:Name="oxRengerBox" Grid.Row="3" Margin="5,0,5,0" IsChecked="False" Click="oxRengerBox_Click">Отображать кислород</CheckBox>
             <Button Grid.Row="4" Margin="5,5,5,10" Click="StartSim_Click" Content="Запуск симуляции"/>
             <Label Grid.Row="5">Сид:</Label>
             <TextBox x:Name="seedInput" Grid.Row="6" Margin="5,0,5,10"></TextBox>
@@ -87,7 +87,7 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             <Border x:Name="MapBorder" Background="#FFC5C3C3" Margin="5,5,5,5" Cursor="Pen">
-                <Image x:Name="MapBox" Grid.Column="0" Stretch="Uniform" Grid.ColumnSpan="2" MouseLeftButtonUp="MapBox_MouseLeftButtonUp"/>
+                <Image x:Name="MapBox" Grid.Column="0" Stretch="Uniform" Grid.ColumnSpan="2" MouseLeftButtonUp="MapBox_MouseLeftButtonUp" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
             </Border>
             <Button Content="⚙️" Margin="0,0,5,5" Height="20" VerticalAlignment="Bottom" HorizontalAlignment="Right" Width="20" Click="Settings_Click"/>
         </Grid>

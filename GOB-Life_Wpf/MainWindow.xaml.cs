@@ -332,7 +332,18 @@ namespace GOB_Life_Wpf
 
         private void VizMode_DropDownClosed(object sender, EventArgs e)
         {
-            if (!isRunning)
+            if (!isRunning && main.cmap != null)
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    int renW = (int)MapBorder.ActualWidth;
+                    int renH = (int)MapBorder.ActualHeight;
+                    RenderImage(Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value), renW, renH, MapBox);
+                });
+        }
+        
+        private void oxRengerBox_Click(object sender, RoutedEventArgs e)
+        {
+            if (!isRunning && main.cmap != null)
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     int renW = (int)MapBorder.ActualWidth;
@@ -702,6 +713,33 @@ namespace GOB_Life_Wpf
                             pixels[i + 2] = renderPixels[i + 2];
                             pixels[i + 3] = renderPixels[i + 3];
                         }
+                    }
+                }
+
+                public void DrawPoint(int x, int y, Color color)
+                {
+                    if (x >= 0 && x < width && y >= 0 && y < height)
+                    {
+                        int index = (y * width + x) * 4;
+
+                        byte oldB = pixels[index];
+                        byte oldG = pixels[index + 1];
+                        byte oldR = pixels[index + 2];
+                        byte oldA = pixels[index + 3];
+
+                        byte newB = color.B;
+                        byte newG = color.G;
+                        byte newR = color.R;
+                        byte newA = color.A;
+
+                        // Композитный альфа-канал
+                        byte alpha = (byte)(newA + oldA * (255 - newA) / 255);
+
+                        // Наложение цвета с учетом альфа-канала
+                        pixels[index] = (byte)((newB * newA + oldB * oldA * (255 - newA) / 255) / alpha);
+                        pixels[index + 1] = (byte)((newG * newA + oldG * oldA * (255 - newA) / 255) / alpha);
+                        pixels[index + 2] = (byte)((newR * newA + oldR * oldA * (255 - newA) / 255) / alpha);
+                        pixels[index + 3] = alpha;
                     }
                 }
 
@@ -1181,20 +1219,16 @@ namespace GOB_Life_Wpf
 
             public static byte[] Map(ref int w, ref int h, int vizMode, bool oxygen)
             {
-                int c = Math.Min(w / main.width, h / main.height);
-                w = c * main.width;
-                h = c * main.height;
+                w = main.width;
+                h = main.height;
 
                 CustomImage img = new CustomImage(w, h);
 
-                img.ClearImage(Color.FromArgb(255, 0, 0, 0)); // Clear with black background
+                img.ClearImage(Color.FromArgb(255, 0, 0, 0));
 
                 foreach (Bot bot in main.queue)
                 {
                     byte a, r, g, b;
-
-                    int botX = bot.x * c;
-                    int botY = bot.y * c;
 
                     switch (vizMode)
                     {
@@ -1220,16 +1254,15 @@ namespace GOB_Life_Wpf
                             break;
                     }
 
-                    img.DrawRectangle(botX, botY, c, c, Color.FromArgb(a, r, g, b), true);
+                    img.DrawPoint(bot.x, bot.y, Color.FromArgb(a, r, g, b));
                 }
 
                 foreach (Food f in main.fmap)
                 {
                     if (f == null)
                         continue;
-                    int foodX = f.x * c;
-                    int foodY = f.y * c;
-                    img.DrawRectangle(foodX, foodY, c, c, Color.FromArgb(255, 50, 50, 50), true);
+
+                    img.DrawPoint(f.x, f.y, Color.FromArgb(255, 50, 50, 50));
                 }
 
                 if (oxygen)
@@ -1238,7 +1271,7 @@ namespace GOB_Life_Wpf
                         for (int y = 0; y < main.height; y++)
                         {
                             ColorFromGradient(main.oxymap[x, y] / (main.oxymap[x, y] + main.crbmap[x, y]), 0, 1, 3, out byte a, out byte r, out byte g, out byte b);
-                            img.DrawRectangle(x * c, y * c, c, c, Color.FromArgb(a, r, g, b), true);
+                            img.DrawPoint(x, y, Color.FromArgb(a, r, g, b));
                         }
                     }
 
@@ -1650,6 +1683,43 @@ namespace GOB_Life_Wpf
                 DNA = new Gtype[main.rnd.Next(10, 200)];
                 gen = fgen = main.rnd.Next(int.MinValue, int.MaxValue);
                 btime = main.step;
+                rot = main.rnd.Next(8);
+
+                switch (rot)
+                {
+                    case 0:
+                        dx = 1;
+                        dy = 0;
+                        break;
+                    case 1:
+                        dx = 1;
+                        dy = 1;
+                        break;
+                    case 2:
+                        dx = 0;
+                        dy = 1;
+                        break;
+                    case 3:
+                        dx = -1;
+                        dy = 1;
+                        break;
+                    case 4:
+                        dx = -1;
+                        dy = 0;
+                        break;
+                    case 5:
+                        dx = -1;
+                        dy = -1;
+                        break;
+                    case 6:
+                        dx = 0;
+                        dy = -1;
+                        break;
+                    case 7:
+                        dx = 1;
+                        dy = -1;
+                        break;
+                } //rotating
 
                 var nykls = Enum.GetValues(typeof(Gtype));
                 for (int i = 0; i < DNA.Length; i++)
@@ -1723,7 +1793,7 @@ namespace GOB_Life_Wpf
 
                 for (int i = 0; i < dna.Length; i++)
                 {
-                    if (i >= Sdna1.Length || (i < Sdna2.Length && main.rnd.Next(100) < 50))
+                    if (i >= Sdna1.Length || (i < Sdna2.Length && main.rnd.Next(100) < 5))
                     {
                         dna[i] = Sdna2[i];
                         if (i < Sdna1.Length)
@@ -2224,7 +2294,7 @@ namespace GOB_Life_Wpf
                                 Gtype[][] dna1 = SplitByElement(DNA, Gtype.start).ToArray();
                                 List<Gtype[]> dna2 = SplitByElement(main.cmap[tx, ty].DNA, Gtype.start);
                                 int maxL = Math.Max(dna1.Length, dna2.Count);
-                                int adr = Math.Abs((int)Math.Round(signals[1] * maxL) + maxL);
+                                int adr = Math.Abs((int)Math.Round(signals[1]) + maxL);
 
                                 Gtype[] gen = dna1[dna1.Length % dna1.Length];
                                 dna2.Insert(adr % dna2.Count, gen);
