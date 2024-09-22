@@ -1745,9 +1745,8 @@ namespace GOB_Life_Wpf
 
             private void Mutation(Gtype[] fDNA)
             {
-                bool m = main.rnd.Next(0, 100) < 5;
                 bool SorE;
-                if (m && main.rnd.Next(0, 100) < 6)
+                if (main.rnd.Next(0, 100) < 6)
                 {
                     SorE = main.rnd.Next(0, 100) < 50;
                     if (main.rnd.Next(0, 100) < 50)
@@ -1777,7 +1776,7 @@ namespace GOB_Life_Wpf
                 var nykls = Enum.GetValues(typeof(Gtype));
                 for (int i = 0; i < DNA.Length; i++)
                 {
-                    if (m && main.rnd.Next(0, 100) < 3 || DNA[i] == 0)
+                    if (main.rnd.Next(0, 100) < 3 || DNA[i] == 0)
                     {
                         DNA[i] = (Gtype)nykls.GetValue(main.rnd.Next(1, nykls.Length));
                         mut++;
@@ -1834,7 +1833,17 @@ namespace GOB_Life_Wpf
                 fgen = f.fgen;
                 predation = f.predation;
 
-                Mutation(f.DNA);
+                if (main.rnd.Next(100) < 5)
+                {
+                    Mutation(f.DNA);
+                    Translation();
+                }
+                else
+                {
+                    DNA = f.DNA;
+                    gates = f.gates;
+                    queue = f.queue;
+                }
 
                 if (mut > 2)
                 {
@@ -1843,8 +1852,6 @@ namespace GOB_Life_Wpf
                 } //критичное колличество мутаций
                 else
                     gen = f.gen;
-
-                Translation();
             }
 
             public Bot(int x, int y, double nrj, Bot p1, Bot p2)
@@ -1886,7 +1893,9 @@ namespace GOB_Life_Wpf
             public int gen, fgen; //ген и ген отца
             public double nrj;
             public double predation { get; private set; } = 0.5F;
-            public List<Gate> gates = new List<Gate>();
+            public List<Gate> gates;
+            private List<Gate> queue;
+
             public Gtype[] DNA, FDNA;
             private static readonly Gtype[] coddons = { Gtype.start, Gtype.input, Gtype.output, Gtype.stop, Gtype.skip, Gtype.undo, Gtype.empty }; //специальный кодоны
 
@@ -1959,6 +1968,9 @@ namespace GOB_Life_Wpf
 
             public void Translation()
             {
+                gates = new List<Gate>();
+                queue = new List<Gate>();
+
                 List<Link> ins = new List<Link>();
                 List<Link> outs = new List<Link>();
                 Gtype wt = Gtype.start;
@@ -2038,12 +2050,8 @@ namespace GOB_Life_Wpf
                     VFill(); //заполняем порты
                     gates.Add(gate);
                 }
-            } //создание мозга
 
-            private Gtype Think(out double[] signals)
-            {
-                List<Gate> queue = new List<Gate>();
-
+                //создаём запечённую очередь
                 foreach (Gate gate in gates)
                 {
                     if (main.exp.Contains(gate.type))
@@ -2056,6 +2064,10 @@ namespace GOB_Life_Wpf
                         if (!queue.Contains(link.A) && link.A != null)
                             queue.Add(link.A);
                 } //продолжаем очередь
+            } //создание мозга
+
+            private Gtype Think(out double[] signals)
+            {
                 for (int i = queue.Count - 1; i >= 0; i--) //сворачиваем очередь
                 {
                     var gate = queue[i];
