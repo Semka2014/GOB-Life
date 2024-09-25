@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -114,17 +113,23 @@ namespace GOB_Life_Wpf
                 int h = (int)MapBorder.ActualHeight;
 
                 // Асинхронный вызов для рендеринга изображения и обновления UI
+                
+                Task.Run(() =>
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    var image = Visualize.Map(ref w, ref h, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value);
-                    RenderImage(image, w, h, MapBox);
                     simInfoText.Content = $"Шаг {main.step}, {main.queue.Count} клеток";
-                    if (RecordingCheck.IsChecked.Value && main.step % int.Parse(rocordInput.Text) == 0)
+                    if (renderChexBox.IsChecked.Value)
                     {
-                        Save(image, w, h);
-                        frame++;
+                        var image = Visualize.Map(ref w, ref h, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value);
+                        RenderImage(image, w, h, MapBox);
+                        if (RecordingCheck.IsChecked.Value && main.step % int.Parse(rocordInput.Text) == 0)
+                        {
+                            Save(image, w, h);
+                            frame++;
+                        }
                     }
-                });
+                })
+                );
             }
             catch (Exception ex)
             {
@@ -340,7 +345,7 @@ namespace GOB_Life_Wpf
                     RenderImage(Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value), renW, renH, MapBox);
                 });
         }
-        
+
         private void oxRengerBox_Click(object sender, RoutedEventArgs e)
         {
             if (!isRunning && main.cmap != null)
