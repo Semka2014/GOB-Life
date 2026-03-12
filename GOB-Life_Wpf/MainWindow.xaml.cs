@@ -1592,9 +1592,11 @@ namespace GOB_Life_Wpf
                     rnd = new Random();
                 }
 
+                private double[,] bgasmap;
+
                 private void Distribute(ref double[,] gasmap)
                 {
-                    double[,] bgasmap = new double[width, height];
+                    Array.Clear(bgasmap, 0, bgasmap.Length);
                     for (int x = 0; x < width; x++)
                     {
                         for (int y = 0; y < height; y++)
@@ -1630,7 +1632,7 @@ namespace GOB_Life_Wpf
                             }
                         }
                     }
-                    gasmap = bgasmap;
+                    (gasmap, bgasmap) = (bgasmap, gasmap);
                 }
 
                 public void RandomFill()
@@ -1640,6 +1642,7 @@ namespace GOB_Life_Wpf
                     fmap = new Food[width, height];
                     oxymap = new double[width, height];
                     crbmap = new double[width, height];
+                    bgasmap = new double[width, height];
 
                     queue.Clear();
 
@@ -1673,17 +1676,11 @@ namespace GOB_Life_Wpf
                     {
                         bot.Init();
                     }
-                    queue = new List<Bot>(bqueue);
+                    (queue, bqueue) = (bqueue, queue);
                     bqueue.Clear();
 
                     Distribute(ref crbmap);
                     Distribute(ref oxymap);
-                    foreach (double g in crbmap)
-                        if (g == double.NaN)
-                            MessageBox.Show("", "");
-                    foreach (double g in oxymap)
-                        if (g == double.NaN)
-                            MessageBox.Show("", "");
 
                     step++;
                 }
@@ -1929,8 +1926,7 @@ namespace GOB_Life_Wpf
                 private List<Gate> queue;
 
                 public Gtype[] DNA, FDNA;
-                private static readonly Gtype[] coddons = { Gtype.start, Gtype.input, Gtype.output, Gtype.stop, Gtype.skip, Gtype.undo, Gtype.empty }; //специальный кодоны
-
+                private static readonly HashSet<Gtype> coddons = new HashSet<Gtype> { Gtype.start, Gtype.input, Gtype.output, Gtype.stop, Gtype.skip, Gtype.undo, Gtype.empty };
                 // Проверка уровня кислорода
                 bool IsOxygenLevelValid(double delta)
                 {
@@ -2111,22 +2107,41 @@ namespace GOB_Life_Wpf
                     signals = null;
                     return Gtype.wait;
                 } //вызывает гейты в нужном порядке
+
+                private readonly (string Name, double Value)[] param = new (string, double)[]
+{
+    ("energy",    0),
+    ("predation", 0),
+    ("mutation",  0),
+    ("time",      0),
+    ("dnal",      0),
+    ("width",     0),
+    ("x",         0),
+    ("height",    0),
+    ("y",         0),
+    ("random",    0),
+    ("oxygen",    0),
+    ("energy2",    0),
+    ("dnal2",    0),
+    ("stealedEn",    0),
+    ("fenergy",    0),
+    ("genL",    0),
+};
+
                 public void Init()
                 {
-                    List<(string, double)> param = new List<(string, double)>
-                {
-                ("energy", nrj),
-                ("predation", predation),
-                ("mutation", mut),
-                ("time", Main.step),
-                ("dnal", DNA.Length),
-                ("width", Main.width),
-                ("x", x),
-                ("height", Main.height),
-                ("y", y),
-                ("random", Main.rnd.Next(0, 1000)),
-                ("oxygen", Main.oxymap[x, y] / (Main.oxymap[x, y] + Main.crbmap[x, y]))
-                }; //стандартные переменные для формул
+                    //стандартные переменные для формул
+                    param[0].Value = nrj;
+                    param[1].Value = predation;
+                    param[2].Value = mut;
+                    param[3].Value = Main.step;
+                    param[4].Value = DNA.Length;
+                    param[5].Value = Main.width;
+                    param[6].Value = x;
+                    param[7].Value = Main.height;
+                    param[8].Value = y;
+                    param[9].Value = Main.rnd.Next(0, 1000);
+                    param[10].Value = Main.oxymap[x, y] / (Main.oxymap[x, y] + Main.crbmap[x, y]);
 
                     int tx = (x + dx + Main.width) % Main.width;
                     int ty = (y + dy + Main.height) % Main.height;
@@ -2240,8 +2255,8 @@ namespace GOB_Life_Wpf
                                         Main.cmap[tx2, ty2] = new Bot(tx2, ty2, Formuls.Compute("deadEn", param.ToArray()), this, p2);
                                         Main.bqueue.Add(Main.cmap[tx2, ty2]);
 
-                                        param.Add(("energy2", p2.nrj));
-                                        param.Add(("dnal2", p2.DNA.Length));
+                                        param[11].Value = p2.nrj; //energy2
+                                        param[12].Value = p2.DNA.Length; // dnal2
 
                                         nrj += Formuls.Compute("sexP1En", param.ToArray());
                                         p2.nrj += Formuls.Compute("sexP2En", param.ToArray());
@@ -2291,14 +2306,14 @@ namespace GOB_Life_Wpf
                         case Gtype.atack: // атака
                             if (Main.cmap[tx, ty] != null)
                             {
-                                param.Add(("energy2", Main.cmap[tx, ty].nrj));
+                                param[11].Value = Main.cmap[tx, ty].nrj; //energy2
                                 double deadOx = Formuls.Compute("deadOx", param.ToArray());
                                 if (IsOxygenLevelValid(deadOx))
                                 {
                                     double dnrj = Math.Min(Formuls.Compute("deadEn", param.ToArray()), Main.cmap[tx, ty].nrj);
                                     Main.cmap[tx, ty].nrj -= Formuls.Compute("deadEn", param.ToArray());
 
-                                    param.Add(("stealedEn", dnrj));
+                                    param[13].Value = dnrj; //stealedEn
                                     nrj += Formuls.Compute("deadEn", param.ToArray());
                                     UpdateOxygen(deadOx);
                                     predation -= 0.01F;
@@ -2306,7 +2321,7 @@ namespace GOB_Life_Wpf
                             }
                             if (Main.fmap[tx, ty] != null)
                             {
-                                param.Add(("fenergy", Main.fmap[tx, ty].nrj));
+                                param[14].Value = Main.fmap[tx, ty].nrj; //fenergy
                                 double fEatOx = Formuls.Compute("fEatOx", param.ToArray());
                                 if (IsOxygenLevelValid(fEatOx))
                                 {
@@ -2343,7 +2358,7 @@ namespace GOB_Life_Wpf
                                     dna2.Insert(adr % dna2.Count, gen);
                                     Main.cmap[tx, ty].DNA = CombineWithDelimiter(dna2.ToArray(), Gtype.start);
 
-                                    param.Add(("genL", gen.Length));
+                                    param[15].Value = gen.Length; //genL
                                     nrj += Formuls.Compute("recombEn", param.ToArray());
                                     UpdateOxygen(recombOx);
                                 }
