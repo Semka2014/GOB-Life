@@ -1597,41 +1597,64 @@ namespace GOB_Life_Wpf
                 private void Distribute(ref double[,] gasmap)
                 {
                     Array.Clear(bgasmap, 0, bgasmap.Length);
-                    for (int x = 0; x < width; x++)
+
+                    int w = width;
+                    int h = height;
+
+                    for (int x = 0; x < w; x++)
                     {
-                        for (int y = 0; y < height; y++)
+                        int tx_m = x == 0 ? w - 1 : x - 1;
+                        int tx_p = x == w - 1 ? 0 : x + 1;
+
+                        for (int y = 0; y < h; y++)
                         {
-                            int div = 0;
+                            double gas = gasmap[x, y];
 
-                            for (int xx = -1; xx <= 1; xx++)
+                            if (gas == 0) continue;
+
+                            int ty_m = y == 0 ? h - 1 : y - 1;
+                            int ty_p = y == h - 1 ? 0 : y + 1;
+
+                            bool centerFree = cmap[x, y] == null && fmap[x, y] == null;
+
+                            if (centerFree)
                             {
-                                for (int yy = -1; yy <= 1; yy++)
-                                {
-                                    int tx = (x + xx + width) % width;
-                                    int ty = (y + yy + height) % height;
-                                    if ((cmap[tx, ty] == null && fmap[tx, ty] == null) || (cmap[x, y] == null && fmap[x, y] == null) || (tx == x && ty == y))
-                                    {
-                                        div++;
-                                    }
-                                }
+                                double delta = gas / 9.0;
+
+                                bgasmap[tx_m, ty_m] += delta; bgasmap[x, ty_m] += delta; bgasmap[tx_p, ty_m] += delta;
+                                bgasmap[tx_m, y] += delta; bgasmap[x, y] += delta; bgasmap[tx_p, y] += delta;
+                                bgasmap[tx_m, ty_p] += delta; bgasmap[x, ty_p] += delta; bgasmap[tx_p, ty_p] += delta;
                             }
-
-                            double deltaGas = gasmap[x, y] / div;
-
-                            for (int xx = -1; xx <= 1; xx++)
+                            else
                             {
-                                for (int yy = -1; yy <= 1; yy++)
-                                {
-                                    int tx = (x + xx + width) % width;
-                                    int ty = (y + yy + height) % height;
-                                    if ((cmap[tx, ty] == null && fmap[tx, ty] == null) || (cmap[x, y] == null && fmap[x, y] == null) || (tx == x && ty == y))
-                                    {
-                                        bgasmap[tx, ty] += deltaGas;
-                                    }
-                                }
+                                int div = 1;
+
+                                bool c_mm = cmap[tx_m, ty_m] == null && fmap[tx_m, ty_m] == null; if (c_mm) div++;
+                                bool c_0m = cmap[x, ty_m] == null && fmap[x, ty_m] == null; if (c_0m) div++;
+                                bool c_pm = cmap[tx_p, ty_m] == null && fmap[tx_p, ty_m] == null; if (c_pm) div++;
+
+                                bool c_m0 = cmap[tx_m, y] == null && fmap[tx_m, y] == null; if (c_m0) div++;
+                                bool c_p0 = cmap[tx_p, y] == null && fmap[tx_p, y] == null; if (c_p0) div++;
+
+                                bool c_mp = cmap[tx_m, ty_p] == null && fmap[tx_m, ty_p] == null; if (c_mp) div++;
+                                bool c_0p = cmap[x, ty_p] == null && fmap[x, ty_p] == null; if (c_0p) div++;
+                                bool c_pp = cmap[tx_p, ty_p] == null && fmap[tx_p, ty_p] == null; if (c_pp) div++;
+
+                                double delta = gas / div;
+
+                                bgasmap[x, y] += delta;
+                                if (c_mm) bgasmap[tx_m, ty_m] += delta;
+                                if (c_0m) bgasmap[x, ty_m] += delta;
+                                if (c_pm) bgasmap[tx_p, ty_m] += delta;
+                                if (c_m0) bgasmap[tx_m, y] += delta;
+                                if (c_p0) bgasmap[tx_p, y] += delta;
+                                if (c_mp) bgasmap[tx_m, ty_p] += delta;
+                                if (c_0p) bgasmap[x, ty_p] += delta;
+                                if (c_pp) bgasmap[tx_p, ty_p] += delta;
                             }
                         }
                     }
+
                     (gasmap, bgasmap) = (bgasmap, gasmap);
                 }
 
