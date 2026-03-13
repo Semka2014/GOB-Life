@@ -58,7 +58,7 @@ namespace GOB_Life_Wpf
 
         private bool isRunning = false;
         private string generate = "";
-        private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
 
         private async void StartSim_Click(object sender, RoutedEventArgs e)
         {
@@ -137,7 +137,6 @@ namespace GOB_Life_Wpf
 
                 // Асинхронный вызов для рендеринга изображения и обновления UI
 
-                Task.Run(() =>
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     int saveSteps = int.Parse(rocordInput.Text);
@@ -165,8 +164,7 @@ namespace GOB_Life_Wpf
                             Directory.CreateDirectory("Saves");
                         Simulation.Serialization.Save($"Saves/{Main.step}.sim");
                     }
-                })
-                );
+                });
             }
             catch (Exception ex)
             {
@@ -216,7 +214,7 @@ namespace GOB_Life_Wpf
             }
         }
 
-        private T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
             {
@@ -312,7 +310,7 @@ namespace GOB_Life_Wpf
                                     foreach (var n in Main.cmap[x, y].DNA)
                                     {
                                         if (!first)
-                                            dna.Append(" ");
+                                            dna.Append(' ');
                                         dna.Append(n.ToString());
                                         first = false;
                                     }
@@ -760,7 +758,7 @@ namespace GOB_Life_Wpf
 
                 private static void ColorFromGradient(double val, double min, double max, int gradient, out byte a, out byte r, out byte g, out byte b)
                 {
-                    double Map(double value, double fromLow, double fromHigh, double toLow, double toHigh)
+                    static double Map(double value, double fromLow, double fromHigh, double toLow, double toHigh)
                     {
                         return toLow + (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow);
                     }
@@ -795,169 +793,68 @@ namespace GOB_Life_Wpf
                     }
                 }
 
-                static void GenToColor(int seed, out byte red, out byte green, out byte blue)
+                static void GenToColor(int seed, out byte r, out byte g, out byte b)
                 {
-                    bool IsGrayShade(int r, int g, int b)
-                    {
-                        // Определяем пороговое значение для различия между каналами
-                        int threshold = 20; // Порог можно настраивать
+                    uint x = (uint)seed;
 
-                        // Проверяем, находятся ли значения каналов в пределах порогового значения друг от друга
-                        return Math.Abs(r - g) <= threshold &&
-                               Math.Abs(r - b) <= threshold &&
-                               Math.Abs(g - b) <= threshold;
-                    }
+                    x ^= x << 13;
+                    x ^= x >> 17;
+                    x ^= x << 5;
 
-                    Random random = new Random(seed);
-                    do
-                    {
-                        red = (byte)random.Next(256);
-                        green = (byte)random.Next(256);
-                        blue = (byte)random.Next(256);
-                    } while (IsGrayShade(red, green, blue));
-
-                    return;
+                    r = (byte)(x & 255);
+                    g = (byte)((x >> 8) & 255);
+                    b = (byte)((x >> 16) & 255);
                 }
 
                 static string GtypeToSrt(Gtype type)
                 {
-                    string caption;
-                    switch (type)
+                    string caption = type switch
                     {
-                        case Gtype.recomb:
-                            caption = "♻️";
-                            break;
-                        case Gtype.gen:
-                            caption = "🧬";
-                            break;
-                        case Gtype.fgen:
-                            caption = "F🧬";
-                            break;
-                        case Gtype.mut:
-                            caption = "⚠️";
-                            break;
-                        case Gtype.posx:
-                            caption = "x";
-                            break;
-                        case Gtype.posy:
-                            caption = "y";
-                            break;
-                        case Gtype.time:
-                            caption = "⌚️";
-                            break;
-                        case Gtype.add:
-                            caption = "➕";
-                            break;
-                        case Gtype.sub:
-                            caption = "➖";
-                            break;
-                        case Gtype.mul:
-                            caption = "✖️";
-                            break;
-                        case Gtype.div:
-                            caption = "➗";
-                            break;
-                        case Gtype.grate:
-                            caption = ">";
-                            break;
-                        case Gtype.less:
-                            caption = "<";
-                            break;
-                        case Gtype.equal:
-                            caption = "=";
-                            break;
-                        case Gtype.not:
-                            caption = "not";
-                            break;
-                        case Gtype.mod:
-                            caption = "mod";
-                            break;
-                        case Gtype.memory:
-                            caption = "💾";
-                            break;
-                        case Gtype.and:
-                            caption = "and";
-                            break;
-                        case Gtype.or:
-                            caption = "or";
-                            break;
-                        case Gtype.xor:
-                            caption = "xor";
-                            break;
-                        case Gtype.dup2:
-                        case Gtype.dup3:
-                            caption = "";
-                            break;
-                        case Gtype.rand:
-                            caption = "🎲";
-                            break;
-                        case Gtype.btime:
-                            caption = "✨⌚️";
-                            break;
-                        case Gtype.bot:
-                            caption = "🦠";
-                            break;
-                        case Gtype.rbot:
-                            caption = "R🦠";
-                            break;
-                        case Gtype.food:
-                            caption = "🍽";
-                            break;
-                        case Gtype.nrj:
-                            caption = "⚡️";
-                            break;
-                        case Gtype.wait:
-                            caption = "💤";
-                            break;
-                        case Gtype.photosyntes:
-                            caption = "🌿";
-                            break;
-                        case Gtype.rep:
-                            caption = "👨‍👦";
-                            break;
-                        case Gtype.sex:
-                            caption = "👨‍👩‍👧";
-                            break;
-                        case Gtype.Rrot:
-                            caption = "↪";
-                            break;
-                        case Gtype.Lrot:
-                            caption = "↩";
-                            break;
-                        case Gtype.walk:
-                            caption = "🚶‍";
-                            break;
-                        case Gtype.atack:
-                            caption = "⚔️";
-                            break;
-                        case Gtype.suicide:
-                            caption = "💀";
-                            break;
-                        case Gtype.trnsmt:
-                            caption = "🔊";
-                            break;
-                        case Gtype.listnr:
-                            caption = "👂";
-                            break;
-                        case Gtype.c0:
-                            caption = "0";
-                            break;
-                        case Gtype.c1:
-                            caption = "1";
-                            break;
-                        case Gtype.c2:
-                            caption = "2";
-                            break;
-                        case Gtype.c5:
-                            caption = "5";
-                            break;
-                        case Gtype.c11:
-                            caption = "11";
-                            break;
-                        default:
-                            caption = "?";
-                            break;
-                    }
+                        Gtype.recomb => "♻️",
+                        Gtype.gen => "🧬",
+                        Gtype.fgen => "F🧬",
+                        Gtype.mut => "⚠️",
+                        Gtype.posx => "x",
+                        Gtype.posy => "y",
+                        Gtype.time => "⌚️",
+                        Gtype.add => "➕",
+                        Gtype.sub => "➖",
+                        Gtype.mul => "✖️",
+                        Gtype.div => "➗",
+                        Gtype.grate => ">",
+                        Gtype.less => "<",
+                        Gtype.equal => "=",
+                        Gtype.not => "not",
+                        Gtype.mod => "mod",
+                        Gtype.memory => "💾",
+                        Gtype.and => "and",
+                        Gtype.or => "or",
+                        Gtype.xor => "xor",
+                        Gtype.dup2 or Gtype.dup3 => "",
+                        Gtype.rand => "🎲",
+                        Gtype.btime => "✨⌚️",
+                        Gtype.bot => "🦠",
+                        Gtype.rbot => "R🦠",
+                        Gtype.food => "🍽",
+                        Gtype.nrj => "⚡️",
+                        Gtype.wait => "💤",
+                        Gtype.photosyntes => "🌿",
+                        Gtype.rep => "👨‍👦",
+                        Gtype.sex => "👨‍👩‍👧",
+                        Gtype.Rrot => "↪",
+                        Gtype.Lrot => "↩",
+                        Gtype.walk => "🚶‍",
+                        Gtype.atack => "⚔️",
+                        Gtype.suicide => "💀",
+                        Gtype.trnsmt => "🔊",
+                        Gtype.listnr => "👂",
+                        Gtype.c0 => "0",
+                        Gtype.c1 => "1",
+                        Gtype.c2 => "2",
+                        Gtype.c5 => "5",
+                        Gtype.c11 => "11",
+                        _ => "?",
+                    };
                     return caption;
                 }
 
@@ -1452,8 +1349,8 @@ namespace GOB_Life_Wpf
 
             public static class Formuls
             {
-                private static Dictionary<string, (NCalc.Expression Expression, string[] Parameters)> customFunctions = new Dictionary<string, (NCalc.Expression, string[])>();
-                private static Dictionary<string, NCalc.Expression> formuls = new Dictionary<string, NCalc.Expression>();
+                private readonly static Dictionary<string, (NCalc.Expression Expression, string[] Parameters)> customFunctions = new Dictionary<string, (NCalc.Expression, string[])>();
+                private readonly static Dictionary<string, NCalc.Expression> formuls = new Dictionary<string, NCalc.Expression>();
 
                 public static void Load()
                 {
@@ -1467,7 +1364,7 @@ namespace GOB_Life_Wpf
                         if (comands[i][0] == '#')
                             continue;
 
-                        string[] cmd = comands[i].Split(new string[] { "; " }, StringSplitOptions.None);
+                        string[] cmd = comands[i].Split(["; "], StringSplitOptions.None);
 
                         switch (cmd[0])
                         {
@@ -1504,9 +1401,9 @@ namespace GOB_Life_Wpf
                     EvaluateFunctionHandler handler = null;
                     handler = (name, args) =>
                     {
-                        if (customFunctions.ContainsKey(name))
+                        if (customFunctions.TryGetValue(name, out (NCalc.Expression Expression, string[] Parameters) value))
                         {
-                            var (functionExpression, parameterNames) = customFunctions[name];
+                            var (functionExpression, parameterNames) = value;
 
                             foreach (var variable in variables)
                             {
@@ -1584,7 +1481,7 @@ namespace GOB_Life_Wpf
                 [NonSerialized]
                 public Random rnd = new Random();
                 public int step;
-                public Gtype[] exp = { Gtype.wait, Gtype.photosyntes, Gtype.rep, Gtype.sex, Gtype.Rrot, Gtype.Lrot, Gtype.walk, Gtype.atack, Gtype.suicide, Gtype.recomb, Gtype.trnsmt };
+                public readonly HashSet<Gtype> exp = new() { Gtype.wait, Gtype.photosyntes, Gtype.rep, Gtype.sex, Gtype.Rrot, Gtype.Lrot, Gtype.walk, Gtype.atack, Gtype.suicide, Gtype.recomb, Gtype.trnsmt };
 
                 [OnDeserialized]
                 private void OnDeserialized(StreamingContext context)
@@ -1966,7 +1863,7 @@ namespace GOB_Life_Wpf
 
                     return targetOxygen > 0 && newTotal - targetOxygen > 0 && oxFact > 0;
                 }
-                bool IsOxygenLevelValid(double delta, int x, int y)
+                static bool IsOxygenLevelValid(double delta, int x, int y)
                 {
                     double oxFact = Main.oxymap[x, y] / (Main.oxymap[x, y] + Main.crbmap[x, y]) + delta;
 
@@ -1999,7 +1896,7 @@ namespace GOB_Life_Wpf
                     Main.oxymap[x, y] = targetOxygen;
                     Main.crbmap[x, y] = newTotal - targetOxygen;
                 }
-                void UpdateOxygen(double delta, int x, int y)
+                static void UpdateOxygen(double delta, int x, int y)
                 {
                     double oxFact = Main.oxymap[x, y] / (Main.oxymap[x, y] + Main.crbmap[x, y]) + delta;
 
@@ -2169,14 +2066,14 @@ namespace GOB_Life_Wpf
                     int tx = (x + dx + Main.width) % Main.width;
                     int ty = (y + dy + Main.height) % Main.height;
 
-                    nrj += Formuls.Compute("pasEn", param.ToArray());
-                    double pasOx = Formuls.Compute("pasOx", param.ToArray());
+                    nrj += Formuls.Compute("pasEn", param);
+                    double pasOx = Formuls.Compute("pasOx", param);
 
                     if (nrj <= 0 || !IsOxygenLevelValid(pasOx))
                     {
                         Main.cmap[x, y] = null;
-                        Main.fmap[x, y] = new Food(x, y, Formuls.Compute("deadEn", param.ToArray()));
-                        double deadOx = Formuls.Compute("deadOx", param.ToArray());
+                        Main.fmap[x, y] = new Food(x, y, Formuls.Compute("deadEn", param));
+                        double deadOx = Formuls.Compute("deadOx", param);
                         if (IsOxygenLevelValid(deadOx))
                         {
                             UpdateOxygen(deadOx);
@@ -2239,10 +2136,10 @@ namespace GOB_Life_Wpf
                     switch (Think(out double[] signals))
                     {
                         case Gtype.photosyntes: // фотосинтез
-                            double photoOx = Formuls.Compute("photoOx", param.ToArray());
+                            double photoOx = Formuls.Compute("photoOx", param);
                             if (IsOxygenLevelValid(photoOx))
                             {
-                                nrj += Formuls.Compute("photoEn", param.ToArray());
+                                nrj += Formuls.Compute("photoEn", param);
                                 UpdateOxygen(photoOx);
                                 predation += 0.01F;
                             }
@@ -2251,12 +2148,12 @@ namespace GOB_Life_Wpf
                         case Gtype.rep: // размножение
                             if (Main.cmap[tx, ty] == null && Main.fmap[tx, ty] == null)
                             {
-                                double dupOx = Formuls.Compute("dupOx", param.ToArray());
+                                double dupOx = Formuls.Compute("dupOx", param);
                                 if (IsOxygenLevelValid(dupOx))
                                 {
-                                    Main.cmap[tx, ty] = new Bot(tx, ty, Formuls.Compute("childEn", param.ToArray()), this);
+                                    Main.cmap[tx, ty] = new Bot(tx, ty, Formuls.Compute("childEn", param), this);
                                     Main.bqueue.Add(Main.cmap[tx, ty]);
-                                    nrj += Formuls.Compute("dupEn", param.ToArray());
+                                    nrj += Formuls.Compute("dupEn", param);
                                     UpdateOxygen(dupOx);
                                 }
                             }
@@ -2271,18 +2168,18 @@ namespace GOB_Life_Wpf
 
                                 if (Main.cmap[tx2, ty2] == null && Main.fmap[tx2, ty2] == null) // пусто ли перед вторым родителем
                                 {
-                                    double sexP1Ox = Formuls.Compute("sexP1Ox", param.ToArray());
-                                    double sexP2Ox = Formuls.Compute("sexP2Ox", param.ToArray());
+                                    double sexP1Ox = Formuls.Compute("sexP1Ox", param);
+                                    double sexP2Ox = Formuls.Compute("sexP2Ox", param);
                                     if (IsOxygenLevelValid(sexP1Ox) && IsOxygenLevelValid(sexP2Ox, p2.x, p2.y))
                                     {
-                                        Main.cmap[tx2, ty2] = new Bot(tx2, ty2, Formuls.Compute("deadEn", param.ToArray()), this, p2);
+                                        Main.cmap[tx2, ty2] = new Bot(tx2, ty2, Formuls.Compute("deadEn", param), this, p2);
                                         Main.bqueue.Add(Main.cmap[tx2, ty2]);
 
                                         param[11].Value = p2.nrj; //energy2
                                         param[12].Value = p2.DNA.Length; // dnal2
 
-                                        nrj += Formuls.Compute("sexP1En", param.ToArray());
-                                        p2.nrj += Formuls.Compute("sexP2En", param.ToArray());
+                                        nrj += Formuls.Compute("sexP1En", param);
+                                        p2.nrj += Formuls.Compute("sexP2En", param);
                                         UpdateOxygen(sexP1Ox);
                                         UpdateOxygen(sexP2Ox, p2.x, p2.y);
                                     }
@@ -2291,21 +2188,21 @@ namespace GOB_Life_Wpf
                             break;
 
                         case Gtype.Rrot: // поворот 1
-                            double rot1Ox = Formuls.Compute("rot1Ox", param.ToArray());
+                            double rot1Ox = Formuls.Compute("rot1Ox", param);
                             if (IsOxygenLevelValid(rot1Ox))
                             {
                                 rot = (rot + 1) % 8;
-                                nrj += Formuls.Compute("rot1En", param.ToArray());
+                                nrj += Formuls.Compute("rot1En", param);
                                 UpdateOxygen(rot1Ox);
                             }
                             break;
 
                         case Gtype.Lrot: // поворот 2
-                            double rot2Ox = Formuls.Compute("rot2Ox", param.ToArray());
+                            double rot2Ox = Formuls.Compute("rot2Ox", param);
                             if (IsOxygenLevelValid(rot2Ox))
                             {
                                 rot = (rot + 7) % 8;
-                                nrj += Formuls.Compute("rot2En", param.ToArray());
+                                nrj += Formuls.Compute("rot2En", param);
                                 UpdateOxygen(rot2Ox);
                             }
                             break;
@@ -2313,14 +2210,14 @@ namespace GOB_Life_Wpf
                         case Gtype.walk: // ходьба
                             if (Main.cmap[tx, ty] == null && Main.fmap[tx, ty] == null)
                             {
-                                double walkOx = Formuls.Compute("walkOx", param.ToArray());
+                                double walkOx = Formuls.Compute("walkOx", param);
                                 if (IsOxygenLevelValid(walkOx))
                                 {
                                     Main.cmap[tx, ty] = Main.cmap[x, y];
                                     Main.cmap[x, y] = null;
                                     x = tx;
                                     y = ty;
-                                    nrj += Formuls.Compute("walkEn", param.ToArray());
+                                    nrj += Formuls.Compute("walkEn", param);
                                     UpdateOxygen(walkOx);
                                 }
                             }
@@ -2330,14 +2227,14 @@ namespace GOB_Life_Wpf
                             if (Main.cmap[tx, ty] != null)
                             {
                                 param[11].Value = Main.cmap[tx, ty].nrj; //energy2
-                                double deadOx = Formuls.Compute("deadOx", param.ToArray());
+                                double deadOx = Formuls.Compute("deadOx", param);
                                 if (IsOxygenLevelValid(deadOx))
                                 {
-                                    double dnrj = Math.Min(Formuls.Compute("deadEn", param.ToArray()), Main.cmap[tx, ty].nrj);
-                                    Main.cmap[tx, ty].nrj -= Formuls.Compute("deadEn", param.ToArray());
+                                    double dnrj = Math.Min(Formuls.Compute("deadEn", param), Main.cmap[tx, ty].nrj);
+                                    Main.cmap[tx, ty].nrj -= Formuls.Compute("deadEn", param);
 
                                     param[13].Value = dnrj; //stealedEn
-                                    nrj += Formuls.Compute("deadEn", param.ToArray());
+                                    nrj += Formuls.Compute("deadEn", param);
                                     UpdateOxygen(deadOx);
                                     predation -= 0.01F;
                                 }
@@ -2345,10 +2242,10 @@ namespace GOB_Life_Wpf
                             if (Main.fmap[tx, ty] != null)
                             {
                                 param[14].Value = Main.fmap[tx, ty].nrj; //fenergy
-                                double fEatOx = Formuls.Compute("fEatOx", param.ToArray());
+                                double fEatOx = Formuls.Compute("fEatOx", param);
                                 if (IsOxygenLevelValid(fEatOx))
                                 {
-                                    nrj += Formuls.Compute("fEatEn", param.ToArray());
+                                    nrj += Formuls.Compute("fEatEn", param);
                                     UpdateOxygen(fEatOx);
                                     Main.fmap[tx, ty] = null;
                                     predation += 0.001F;
@@ -2357,10 +2254,10 @@ namespace GOB_Life_Wpf
                             break;
 
                         case Gtype.suicide: // суицид
-                            double sdeadOx = Formuls.Compute("sdeadOx", param.ToArray());
+                            double sdeadOx = Formuls.Compute("sdeadOx", param);
                             if (IsOxygenLevelValid(sdeadOx))
                             {
-                                Main.fmap[x, y] = new Food(x, y, Formuls.Compute("sdeadEn", param.ToArray()));
+                                Main.fmap[x, y] = new Food(x, y, Formuls.Compute("sdeadEn", param));
                                 UpdateOxygen(sdeadOx);
                                 Main.cmap[x, y] = null;
                             }
@@ -2369,7 +2266,7 @@ namespace GOB_Life_Wpf
                         case Gtype.recomb: // рекомбинация
                             if (Main.cmap[tx, ty] != null)
                             {
-                                double recombOx = Formuls.Compute("recombOx", param.ToArray());
+                                double recombOx = Formuls.Compute("recombOx", param);
                                 if (IsOxygenLevelValid(recombOx))
                                 {
                                     Gtype[][] dna1 = SplitByElement(DNA, Gtype.start).ToArray();
@@ -2382,7 +2279,7 @@ namespace GOB_Life_Wpf
                                     Main.cmap[tx, ty].DNA = CombineWithDelimiter(dna2.ToArray(), Gtype.start);
 
                                     param[15].Value = gen.Length; //genL
-                                    nrj += Formuls.Compute("recombEn", param.ToArray());
+                                    nrj += Formuls.Compute("recombEn", param);
                                     UpdateOxygen(recombOx);
                                 }
                             }
@@ -2391,11 +2288,11 @@ namespace GOB_Life_Wpf
                         case Gtype.trnsmt: // передача сигнала
                             if (Main.cmap[tx, ty] != null)
                             {
-                                double trnsmtOx = Formuls.Compute("trnsmtOx", param.ToArray());
+                                double trnsmtOx = Formuls.Compute("trnsmtOx", param);
                                 if (IsOxygenLevelValid(trnsmtOx))
                                 {
                                     Main.cmap[tx, ty].recSignal = signals[1];
-                                    nrj += Formuls.Compute("trnsmtEn", param.ToArray());
+                                    nrj += Formuls.Compute("trnsmtEn", param);
                                     UpdateOxygen(trnsmtOx);
                                 }
                             }
