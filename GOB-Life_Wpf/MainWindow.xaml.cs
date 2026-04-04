@@ -100,6 +100,218 @@ namespace GOB_Life_Wpf
             }
         }
 
+        // Метод для кнопки "Убить 50%"
+        private async void KillHalf_Click(object sender, RoutedEventArgs e)
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                await Task.Run(() =>
+                {
+                    int countToKill = Main.queue.Count / 2;
+                    var botsToKill = Main.queue
+                        .OrderBy(_ => Main.rnd.Next())
+                        .Take(countToKill)
+                        .ToList();
+
+                    foreach (var bot in botsToKill)
+                    {
+                        bot.nrj = 0;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при убийстве ботов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                semaphore.Release(); // всегда из UI-потока — правильно
+            }
+        }
+
+        // Метод для кнопки "Мутировать всех"
+        private async void MutateAll_Click(object sender, RoutedEventArgs e)
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                await Task.Run(() =>
+                {
+                    foreach (var bot in Main.queue)
+                    {
+                        bot.Mutation(bot.DNA);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при мутации ботов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
+
+        // Методы для изменения кислорода
+        private async void IncreaseO2_Click(object sender, RoutedEventArgs e)
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                await Task.Run(() =>
+                {
+                    for (int x = 0; x < Main.width; x++)
+                    {
+                        for (int y = 0; y < Main.height; y++)
+                        {
+                            Main.oxymap[x, y] *= 1.17;
+                            Main.crbmap[x, y] /= 1.17;
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при изменении уровня кислорода: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
+
+        private async void DecreaseO2_Click(object sender, RoutedEventArgs e)
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                await Task.Run(() =>
+                {
+                    for (int x = 0; x < Main.width; x++)
+                    {
+                        for (int y = 0; y < Main.height; y++)
+                        {
+                            Main.oxymap[x, y] /= 1.17;
+                            Main.crbmap[x, y] *= 1.17;
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при изменении уровня кислорода: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
+
+        // Методы для изменения энергии ботов
+        private async void IncreaseEnergy_Click(object sender, RoutedEventArgs e)
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                await Task.Run(() =>
+                {
+                    foreach (var bot in Main.queue)
+                    {
+                        bot.nrj *= 1.3;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при благословении ботов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                semaphore.Release(); // всегда из UI-потока — правильно
+            }
+        }
+
+        private async void DecreaseEnergy_Click(object sender, RoutedEventArgs e)
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                await Task.Run(() =>
+                {
+                    foreach (var bot in Main.queue)
+                    {
+                        bot.nrj /= 1.3;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при истощении ботов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                semaphore.Release(); // всегда из UI-потока — правильно
+            }
+        }
+
+        // Методы для работы с едой
+        private async void AddFood_Click(object sender, RoutedEventArgs e)
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                await Task.Run(() =>
+                {
+                    for (int x = 0; x < Main.width; x++)
+                    {
+                        for (int y = 0; y < Main.height; y++)
+                        {
+                            if (Main.fmap[x, y] == null && Main.cmap[x, y] == null && Main.rnd.Next(3) == 0)
+                            {
+                                Main.fmap[x, y] = new Simulation.Food(x, y, 10);
+                            }
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при добавлении еды: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                semaphore.Release(); // всегда из UI-потока — правильно
+            }
+        }
+
+        private async void RemoveFood_Click(object sender, RoutedEventArgs e)
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                await Task.Run(() =>
+                {
+                    for (int x = 0; x < Main.width; x++)
+                    {
+                        for (int y = 0; y < Main.height; y++)
+                        {
+                            Main.fmap[x, y] = null;
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при очистке еды: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                semaphore.Release(); // всегда из UI-потока — правильно
+            }
+        }
+
         private async Task StartSimulationAsync()
         {
             while (isRunning)
@@ -1692,7 +1904,7 @@ namespace GOB_Life_Wpf
                     Translation();
                 }
 
-                private void Mutation(Gtype[] fDNA)
+                public void Mutation(Gtype[] fDNA)
                 {
                     bool SorE;
                     if (Main.rnd.Next(0, 100) < 6)
