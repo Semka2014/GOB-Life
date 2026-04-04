@@ -126,7 +126,7 @@ namespace GOB_Life_Wpf
             }
             finally
             {
-                semaphore.Release(); // всегда из UI-потока — правильно
+                semaphore.Release();
             }
         }
 
@@ -180,6 +180,13 @@ namespace GOB_Life_Wpf
             {
                 semaphore.Release();
             }
+
+            if (!isRunning)
+            {
+                int renW = (int)MapBorder.ActualWidth;
+                int renH = (int)MapBorder.ActualHeight;
+                RenderImage(Simulation.Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value), renW, renH, MapBox);
+            }
         }
 
         private async void DecreaseO2_Click(object sender, RoutedEventArgs e)
@@ -207,6 +214,13 @@ namespace GOB_Life_Wpf
             {
                 semaphore.Release();
             }
+
+            if (!isRunning)
+            {
+                int renW = (int)MapBorder.ActualWidth;
+                int renH = (int)MapBorder.ActualHeight;
+                RenderImage(Simulation.Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value), renW, renH, MapBox);
+            }
         }
 
         // Методы для изменения энергии ботов
@@ -229,7 +243,7 @@ namespace GOB_Life_Wpf
             }
             finally
             {
-                semaphore.Release(); // всегда из UI-потока — правильно
+                semaphore.Release();
             }
         }
 
@@ -252,7 +266,7 @@ namespace GOB_Life_Wpf
             }
             finally
             {
-                semaphore.Release(); // всегда из UI-потока — правильно
+                semaphore.Release();
             }
         }
 
@@ -282,7 +296,14 @@ namespace GOB_Life_Wpf
             }
             finally
             {
-                semaphore.Release(); // всегда из UI-потока — правильно
+                semaphore.Release();
+            }
+
+            if (!isRunning)
+            {
+                int renW = (int)MapBorder.ActualWidth;
+                int renH = (int)MapBorder.ActualHeight;
+                RenderImage(Simulation.Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value), renW, renH, MapBox);
             }
         }
 
@@ -308,7 +329,14 @@ namespace GOB_Life_Wpf
             }
             finally
             {
-                semaphore.Release(); // всегда из UI-потока — правильно
+                semaphore.Release();
+            }
+
+            if (!isRunning)
+            {
+                int renW = (int)MapBorder.ActualWidth;
+                int renH = (int)MapBorder.ActualHeight;
+                RenderImage(Simulation.Visualize.Map(ref renW, ref renH, vizMode.SelectedIndex, oxRengerBox.IsChecked.Value), renW, renH, MapBox);
             }
         }
 
