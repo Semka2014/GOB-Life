@@ -1,7 +1,7 @@
 ﻿<Window x:Class="GOB_Life_Wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="GOB-Life - симуляция естественного отбора" Height="581" Width="1000" Background="#FFDFDFDF">
+        Title="GOB-Life - симуляция естественного отбора" Height="580" Width="1200" Background="#FFDFDFDF">
     <Window.Resources>
         <Style x:Key="BoxExpander" TargetType="Expander">
             <Setter Property="Margin" Value="0,0,0,4"/>
@@ -97,8 +97,8 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBox x:Name="mapWidthInput" Grid.Column="0" Margin="0,0,2,0" Text="ширина"/>
-                                <TextBox x:Name="mapHeightInput" Grid.Column="1" Margin="2,0,0,0" Text="высота"/>
+                                <TextBox x:Name="mapWidthInput" Grid.Column="0" Margin="0,0,2,0" Text="ширина (350)"/>
+                                <TextBox x:Name="mapHeightInput" Grid.Column="1" Margin="2,0,0,0" Text="высота (200)"/>
                             </Grid>
 
                             <Label Padding="0,2">Режим отображения:</Label>

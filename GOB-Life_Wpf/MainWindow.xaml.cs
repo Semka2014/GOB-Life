@@ -2375,125 +2375,158 @@ namespace GOB_Life_Wpf
 
                     switch (Think(out double[] signals))
                     {
-                        case Gtype.photosyntes: // фотосинтез
+                        case Gtype.photosyntes:
                             double photoOx = Formuls.Compute("photoOx", param);
                             if (IsOxygenLevelValid(photoOx))
                             {
-                                nrj += Formuls.Compute("photoEn", param);
-                                UpdateOxygen(photoOx);
-                                predation += 0.01F;
+                                double photoEn = Formuls.Compute("photoEn", param);
+                                if (nrj + photoEn >= 0)
+                                {
+                                    nrj += photoEn;
+                                    UpdateOxygen(photoOx);
+                                    predation += 0.01F;
+                                }
                             }
                             break;
 
-                        case Gtype.rep: // размножение
+                        case Gtype.rep:
                             if (Main.cmap[tx, ty] == null && Main.fmap[tx, ty] == null)
                             {
                                 double dupOx = Formuls.Compute("dupOx", param);
                                 if (IsOxygenLevelValid(dupOx))
                                 {
-                                    Main.cmap[tx, ty] = new Bot(tx, ty, Formuls.Compute("childEn", param), this);
-                                    Main.bqueue.Add(Main.cmap[tx, ty]);
-                                    nrj += Formuls.Compute("dupEn", param);
-                                    UpdateOxygen(dupOx);
-                                }
-                            }
-                            break;
-
-                        case Gtype.sex: // половое размножение
-                            if (Main.cmap[tx, ty] != null) // есть ли второй родитель
-                            {
-                                Bot p2 = Main.cmap[tx, ty];
-                                int tx2 = (p2.x + p2.dx + Main.width) % Main.width;
-                                int ty2 = (p2.y + p2.dy + Main.height) % Main.height;
-
-                                if (Main.cmap[tx2, ty2] == null && Main.fmap[tx2, ty2] == null) // пусто ли перед вторым родителем
-                                {
-                                    double sexP1Ox = Formuls.Compute("sexP1Ox", param);
-                                    double sexP2Ox = Formuls.Compute("sexP2Ox", param);
-                                    if (IsOxygenLevelValid(sexP1Ox) && IsOxygenLevelValid(sexP2Ox, p2.x, p2.y))
+                                    double childEn = Formuls.Compute("childEn", param);
+                                    double dupEn = Formuls.Compute("dupEn", param);
+                                    if (nrj + dupEn >= 0)
                                     {
-                                        Main.cmap[tx2, ty2] = new Bot(tx2, ty2, Formuls.Compute("deadEn", param), this, p2);
-                                        Main.bqueue.Add(Main.cmap[tx2, ty2]);
-
-                                        param[11].Value = p2.nrj; //energy2
-                                        param[12].Value = p2.DNA.Length; // dnal2
-
-                                        nrj += Formuls.Compute("sexP1En", param);
-                                        p2.nrj += Formuls.Compute("sexP2En", param);
-                                        UpdateOxygen(sexP1Ox);
-                                        UpdateOxygen(sexP2Ox, p2.x, p2.y);
+                                        Main.cmap[tx, ty] = new Bot(tx, ty, childEn, this);
+                                        Main.bqueue.Add(Main.cmap[tx, ty]);
+                                        nrj += dupEn;
+                                        UpdateOxygen(dupOx);
                                     }
                                 }
                             }
                             break;
 
-                        case Gtype.Rrot: // поворот 1
+                        case Gtype.sex:
+                            if (Main.cmap[tx, ty] != null)
+                            {
+                                Bot p2 = Main.cmap[tx, ty];
+                                int tx2 = (p2.x + p2.dx + Main.width) % Main.width;
+                                int ty2 = (p2.y + p2.dy + Main.height) % Main.height;
+
+                                if (Main.cmap[tx2, ty2] == null && Main.fmap[tx2, ty2] == null)
+                                {
+                                    double sexP1Ox = Formuls.Compute("sexP1Ox", param);
+                                    double sexP2Ox = Formuls.Compute("sexP2Ox", param);
+                                    if (IsOxygenLevelValid(sexP1Ox) && IsOxygenLevelValid(sexP2Ox, p2.x, p2.y))
+                                    {
+                                        param[11].Value = p2.nrj;
+                                        param[12].Value = p2.DNA.Length;
+
+                                        double sexP1En = Formuls.Compute("sexP1En", param);
+                                        double sexP2En = Formuls.Compute("sexP2En", param);
+                                        if (nrj + sexP1En >= 0 && p2.nrj + sexP2En >= 0)
+                                        {
+                                            Main.cmap[tx2, ty2] = new Bot(tx2, ty2, Formuls.Compute("deadEn", param), this, p2);
+                                            Main.bqueue.Add(Main.cmap[tx2, ty2]);
+                                            nrj += sexP1En;
+                                            p2.nrj += sexP2En;
+                                            UpdateOxygen(sexP1Ox);
+                                            UpdateOxygen(sexP2Ox, p2.x, p2.y);
+                                        }
+                                    }
+                                }
+                            }
+                            break;
+
+                        case Gtype.Rrot:
                             double rot1Ox = Formuls.Compute("rot1Ox", param);
                             if (IsOxygenLevelValid(rot1Ox))
                             {
-                                rot = (rot + 1) % 8;
-                                nrj += Formuls.Compute("rot1En", param);
-                                UpdateOxygen(rot1Ox);
+                                double rot1En = Formuls.Compute("rot1En", param);
+                                if (nrj + rot1En >= 0)
+                                {
+                                    rot = (rot + 1) % 8;
+                                    nrj += rot1En;
+                                    UpdateOxygen(rot1Ox);
+                                }
                             }
                             break;
 
-                        case Gtype.Lrot: // поворот 2
+                        case Gtype.Lrot:
                             double rot2Ox = Formuls.Compute("rot2Ox", param);
                             if (IsOxygenLevelValid(rot2Ox))
                             {
-                                rot = (rot + 7) % 8;
-                                nrj += Formuls.Compute("rot2En", param);
-                                UpdateOxygen(rot2Ox);
+                                double rot2En = Formuls.Compute("rot2En", param);
+                                if (nrj + rot2En >= 0)
+                                {
+                                    rot = (rot + 7) % 8;
+                                    nrj += rot2En;
+                                    UpdateOxygen(rot2Ox);
+                                }
                             }
                             break;
 
-                        case Gtype.walk: // ходьба
+                        case Gtype.walk:
                             if (Main.cmap[tx, ty] == null && Main.fmap[tx, ty] == null)
                             {
                                 double walkOx = Formuls.Compute("walkOx", param);
                                 if (IsOxygenLevelValid(walkOx))
                                 {
-                                    Main.cmap[tx, ty] = Main.cmap[x, y];
-                                    Main.cmap[x, y] = null;
-                                    x = tx;
-                                    y = ty;
-                                    nrj += Formuls.Compute("walkEn", param);
-                                    UpdateOxygen(walkOx);
+                                    double walkEn = Formuls.Compute("walkEn", param);
+                                    if (nrj + walkEn >= 0)
+                                    {
+                                        Main.cmap[tx, ty] = Main.cmap[x, y];
+                                        Main.cmap[x, y] = null;
+                                        x = tx;
+                                        y = ty;
+                                        nrj += walkEn;
+                                        UpdateOxygen(walkOx);
+                                    }
                                 }
                             }
                             break;
 
-                        case Gtype.atack: // атака
+                        case Gtype.atack:
                             if (Main.cmap[tx, ty] != null)
                             {
-                                param[11].Value = Main.cmap[tx, ty].nrj; //energy2
+                                param[11].Value = Main.cmap[tx, ty].nrj;
                                 double deadOx = Formuls.Compute("deadOx", param);
                                 if (IsOxygenLevelValid(deadOx))
                                 {
-                                    double dnrj = Math.Min(Formuls.Compute("deadEn", param), Main.cmap[tx, ty].nrj);
-                                    Main.cmap[tx, ty].nrj -= Formuls.Compute("deadEn", param);
+                                    double deadEn = Formuls.Compute("deadEn", param);
+                                    if (nrj + deadEn >= 0)
+                                    {
+                                        double dnrj = Math.Min(deadEn, Main.cmap[tx, ty].nrj);
+                                        Main.cmap[tx, ty].nrj -= deadEn;
 
-                                    param[13].Value = dnrj; //stealedEn
-                                    nrj += Formuls.Compute("deadEn", param);
-                                    UpdateOxygen(deadOx);
-                                    predation -= 0.01F;
+                                        param[13].Value = dnrj;
+                                        nrj += deadEn;
+                                        UpdateOxygen(deadOx);
+                                        predation -= 0.01F;
+                                    }
                                 }
                             }
                             if (Main.fmap[tx, ty] != null)
                             {
-                                param[14].Value = Main.fmap[tx, ty].nrj; //fenergy
+                                param[14].Value = Main.fmap[tx, ty].nrj;
                                 double fEatOx = Formuls.Compute("fEatOx", param);
                                 if (IsOxygenLevelValid(fEatOx))
                                 {
-                                    nrj += Formuls.Compute("fEatEn", param);
-                                    UpdateOxygen(fEatOx);
-                                    Main.fmap[tx, ty] = null;
-                                    predation += 0.001F;
+                                    double fEatEn = Formuls.Compute("fEatEn", param);
+                                    if (nrj + fEatEn >= 0)
+                                    {
+                                        nrj += fEatEn;
+                                        UpdateOxygen(fEatOx);
+                                        Main.fmap[tx, ty] = null;
+                                        predation += 0.001F;
+                                    }
                                 }
                             }
                             break;
 
-                        case Gtype.suicide: // суицид
+                        case Gtype.suicide:
                             double sdeadOx = Formuls.Compute("sdeadOx", param);
                             if (IsOxygenLevelValid(sdeadOx))
                             {
@@ -2503,37 +2536,45 @@ namespace GOB_Life_Wpf
                             }
                             return;
 
-                        case Gtype.recomb: // рекомбинация
+                        case Gtype.recomb:
                             if (Main.cmap[tx, ty] != null)
                             {
                                 double recombOx = Formuls.Compute("recombOx", param);
                                 if (IsOxygenLevelValid(recombOx))
                                 {
-                                    Gtype[][] dna1 = SplitByElement(DNA, Gtype.start).ToArray();
-                                    List<Gtype[]> dna2 = SplitByElement(Main.cmap[tx, ty].DNA, Gtype.start);
-                                    int maxL = Math.Max(dna1.Length, dna2.Count);
-                                    int adr = Math.Abs((int)Math.Round(signals[1]) + maxL);
+                                    double recombEn = Formuls.Compute("recombEn", param);
+                                    if (nrj + recombEn >= 0)
+                                    {
+                                        Gtype[][] dna1 = SplitByElement(DNA, Gtype.start).ToArray();
+                                        List<Gtype[]> dna2 = SplitByElement(Main.cmap[tx, ty].DNA, Gtype.start);
+                                        int maxL = Math.Max(dna1.Length, dna2.Count);
+                                        int adr = Math.Abs((int)Math.Round(signals[1]) + maxL);
 
-                                    Gtype[] gen = dna1[dna1.Length % dna1.Length];
-                                    dna2.Insert(adr % dna2.Count, gen);
-                                    Main.cmap[tx, ty].DNA = CombineWithDelimiter(dna2.ToArray(), Gtype.start);
+                                        Gtype[] gen = dna1[dna1.Length % dna1.Length];
+                                        dna2.Insert(adr % dna2.Count, gen);
+                                        Main.cmap[tx, ty].DNA = CombineWithDelimiter(dna2.ToArray(), Gtype.start);
 
-                                    param[15].Value = gen.Length; //genL
-                                    nrj += Formuls.Compute("recombEn", param);
-                                    UpdateOxygen(recombOx);
+                                        param[15].Value = gen.Length;
+                                        nrj += recombEn;
+                                        UpdateOxygen(recombOx);
+                                    }
                                 }
                             }
                             break;
 
-                        case Gtype.trnsmt: // передача сигнала
+                        case Gtype.trnsmt:
                             if (Main.cmap[tx, ty] != null)
                             {
                                 double trnsmtOx = Formuls.Compute("trnsmtOx", param);
                                 if (IsOxygenLevelValid(trnsmtOx))
                                 {
-                                    Main.cmap[tx, ty].recSignal = signals[1];
-                                    nrj += Formuls.Compute("trnsmtEn", param);
-                                    UpdateOxygen(trnsmtOx);
+                                    double trnsmtEn = Formuls.Compute("trnsmtEn", param);
+                                    if (nrj + trnsmtEn >= 0)
+                                    {
+                                        Main.cmap[tx, ty].recSignal = signals[1];
+                                        nrj += trnsmtEn;
+                                        UpdateOxygen(trnsmtOx);
+                                    }
                                 }
                             }
                             break;
