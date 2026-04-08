@@ -62,6 +62,11 @@ namespace GOB_Life_Wpf
 
         private async void StartSim_Click(object sender, RoutedEventArgs e)
         {
+            await StartSim();
+        }
+
+        private async Task StartSim()
+        {
             await semaphore.WaitAsync();
             try
             {
@@ -340,6 +345,14 @@ namespace GOB_Life_Wpf
             }
         }
 
+        int _autoSearchSteps = 0;
+        int _autoSearchBots = 0;
+        private void autoSearchCheck_Click(object sender, RoutedEventArgs e)
+        {
+            _autoSearchSteps = int.Parse(autoSearchStepsInput.Text);
+            _autoSearchBots = int.Parse(autoSearchMinBotsInput.Text);
+        }
+
         private async Task StartSimulationAsync()
         {
             while (isRunning)
@@ -403,6 +416,21 @@ namespace GOB_Life_Wpf
                         if (!Directory.Exists("Saves"))
                             Directory.CreateDirectory("Saves");
                         Simulation.Serialization.Save($"Saves/{Main.step}.sim");
+                    }
+
+                    if (autoSearchCheck.IsChecked.Value)
+                    {
+                        if (Main.step >= _autoSearchSteps)
+                        {
+                            if (Main.queue.Count > _autoSearchBots)
+                            {
+                                autoSearchCheck.IsChecked = false;
+                                if (autoSearchRecordCheck.IsChecked.Value)
+                                    RecordingCheck.IsChecked = true;
+                            }
+                            else
+                                StartSim();
+                        }
                     }
                 });
             }

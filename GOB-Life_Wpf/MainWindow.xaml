@@ -153,6 +153,17 @@
                         </StackPanel>
                     </Expander>
 
+                    <Expander Header="Автопоиск жизни" IsExpanded="False" Style="{StaticResource BoxExpander}">
+                        <StackPanel Margin="6,5,6,6">
+                            <CheckBox x:Name="autoSearchCheck" Click="autoSearchCheck_Click" Margin="0,0,0,4">Автопоиск жизни</CheckBox>
+                            <CheckBox x:Name="autoSearchRecordCheck" Margin="0,0,0,4">Включить запись, когда нашли</CheckBox>
+                            <Label Padding="0,2">Шагов ожидания:</Label>
+                            <TextBox x:Name="autoSearchStepsInput" Margin="0,0,0,4" Text="1000"/>
+                            <Label Padding="0,2">Минимум ботов:</Label>
+                            <TextBox x:Name="autoSearchMinBotsInput" Text="30"/>
+                        </StackPanel>
+                    </Expander>
+
                 </StackPanel>
             </ScrollViewer>
         </DockPanel>
