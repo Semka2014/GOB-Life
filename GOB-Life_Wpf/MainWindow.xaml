@@ -15,11 +15,44 @@
                                               IsChecked="{Binding IsExpanded,
                                                   RelativeSource={RelativeSource TemplatedParent},
                                                   Mode=TwoWay}"
-                                              Style="{x:Null}"
-                                              Background="#FFc8c6c6"
-                                              BorderThickness="0"
-                                              HorizontalContentAlignment="Stretch"
-                                              Padding="0" Cursor="Hand">
+                                              Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Background" Value="#FFc8c6c6"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Padding" Value="0"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="TbBorder"
+                                                                Background="{TemplateBinding Background}"
+                                                                BorderThickness="0">
+                                                            <ContentPresenter HorizontalAlignment="Stretch"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="TbBorder" Property="Background" Value="#FFd4d2d2"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="TbBorder" Property="Background" Value="#FFc0bebe"/>
+                                                            </Trigger>
+                                                            <MultiTrigger>
+                                                                <MultiTrigger.Conditions>
+                                                                    <Condition Property="IsChecked" Value="True"/>
+                                                                    <Condition Property="IsMouseOver" Value="True"/>
+                                                                </MultiTrigger.Conditions>
+                                                                <Setter TargetName="TbBorder" Property="Background" Value="#FFb0aeae"/>
+                                                            </MultiTrigger>
+                                                            <Trigger Property="IsPressed" Value="True">
+                                                                <Setter TargetName="TbBorder" Property="Background" Value="#FFa8a6a6"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
                                     <DockPanel Margin="6,4,6,4">
                                         <Grid DockPanel.Dock="Left" Width="10"
                                               VerticalAlignment="Center" Margin="0,0,6,0">
@@ -50,7 +83,6 @@
                                 <Setter TargetName="Separator" Property="Visibility" Value="Visible"/>
                                 <Setter TargetName="ArrowRight" Property="Visibility" Value="Collapsed"/>
                                 <Setter TargetName="ArrowDown" Property="Visibility" Value="Visible"/>
-                                <Setter TargetName="Tb" Property="Background" Value="#FFc0bebe"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -80,10 +112,11 @@
                 </Grid>
             </StackPanel>
 
+            <Label x:Name="simInfoText" DockPanel.Dock="Top" Padding="5,4,5,4">Симуляция не запущена</Label>
+
             <ScrollViewer VerticalScrollBarVisibility="Visible">
                 <StackPanel Margin="5">
 
-                    <Label x:Name="simInfoText" Padding="0,4,0,4">Симуляция не запущена</Label>
                     <Button Margin="0,0,0,6" Click="StartSim_Click" Content="▶ Запуск симуляции" FontWeight="SemiBold"/>
 
                     <Expander Header="Настройки" IsExpanded="True" Style="{StaticResource BoxExpander}">
