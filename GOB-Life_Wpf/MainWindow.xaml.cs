@@ -1633,14 +1633,15 @@ namespace GOB_Life_Wpf
                             continue;
 
                         string[] cmd = comands[i].Split(["; "], StringSplitOptions.None);
-
                         switch (cmd[0])
                         {
                             case "func":
                                 AddFunction(cmd[1], cmd[2], cmd.Skip(3).ToArray());
                                 break;
                             default:
-                                formuls.Add(cmd[0], new NCalc.Expression(cmd[1]));
+                                var expr = new NCalc.Expression(cmd[1]);
+                                expr.EvaluateFunction += GlobalFunctionHandler;
+                                formuls.Add(cmd[0], expr);
                                 break;
                         }
                     }
@@ -1651,63 +1652,50 @@ namespace GOB_Life_Wpf
                     customFunctions[functionName] = (new NCalc.Expression(formula), parameterNames);
                 }
 
+                private static void GlobalFunctionHandler(string name, FunctionArgs args)
+                {
+                    if (customFunctions.TryGetValue(name, out (NCalc.Expression Expression, string[] Parameters) value))
+                    {
+                        var (functionExpression, parameterNames) = value;
+
+                        for (int i = 0; i < parameterNames.Length; i++)
+                        {
+                            functionExpression.Parameters[parameterNames[i]] = args.Parameters[i].Evaluate();
+                        }
+
+                        try
+                        {
+                            args.Result = functionExpression.Evaluate();
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Error evaluating function '{name}': {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                            throw;
+                        }
+                    }
+                }
+
                 public static double Compute(string formulaName, params (string, double)[] variables)
                 {
-                    if (!formuls.ContainsKey(formulaName))
+                    if (!formuls.TryGetValue(formulaName, out var expression))
                     {
                         MessageBox.Show($"Formula '{formulaName}' not found.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return double.NaN; // Or throw an exception if that's preferred
+                        return double.NaN;
                     }
-
-                    var expression = formuls[formulaName];
 
                     foreach (var variable in variables)
                     {
                         expression.Parameters[variable.Item1] = variable.Item2;
                     }
 
-                    EvaluateFunctionHandler handler = null;
-                    handler = (name, args) =>
-                    {
-                        if (customFunctions.TryGetValue(name, out (NCalc.Expression Expression, string[] Parameters) value))
-                        {
-                            var (functionExpression, parameterNames) = value;
-
-                            foreach (var variable in variables)
-                            {
-                                functionExpression.Parameters[variable.Item1] = variable.Item2;
-                            }
-
-                            for (int i = 0; i < parameterNames.Length; i++)
-                            {
-                                functionExpression.Parameters[parameterNames[i]] = args.Parameters[i].Evaluate();
-                            }
-
-                            try
-                            {
-                                args.Result = functionExpression.Evaluate();
-                            }
-                            catch (Exception ex)
-                            {
-                                MessageBox.Show($"Error evaluating function '{name}': {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                                throw;  // Re-throw to handle it further up the stack
-                            }
-                        }
-                    };
-
-                    expression.EvaluateFunction += handler;
-
                     try
                     {
-                        var result = Convert.ToDouble(expression.Evaluate());
-                        expression.EvaluateFunction -= handler;
-                        return result;
+                        return Convert.ToDouble(expression.Evaluate());
                     }
                     catch (Exception ex)
                     {
                         MessageBox.Show($"Error evaluating formula '{formulaName}': {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return double.NaN; // Or throw an exception if that's preferred
-
+                        return double.NaN;
                     }
                 }
             }
@@ -2311,7 +2299,7 @@ namespace GOB_Life_Wpf
     ("oxygen",    0),
     ("energy2",    0),
     ("dnal2",    0),
-    ("stealedEn",    0),
+    ("removed_____temp",    0),
     ("fenergy",    0),
     ("genL",    0),
 };
@@ -2520,20 +2508,17 @@ namespace GOB_Life_Wpf
                             if (Main.cmap[tx, ty] != null)
                             {
                                 param[11].Value = Main.cmap[tx, ty].nrj;
-                                double deadOx = Formuls.Compute("deadOx", param);
-                                if (IsOxygenLevelValid(deadOx))
-                                {
-                                    double deadEn = Formuls.Compute("deadEn", param);
-                                    if (nrj + deadEn >= 0)
-                                    {
-                                        double dnrj = Math.Min(deadEn, Main.cmap[tx, ty].nrj);
-                                        Main.cmap[tx, ty].nrj -= deadEn;
+                                double stealEn = Formuls.Compute("stealEn", param);
+                                double getstealedEn = Formuls.Compute("getstealedEn", param);
+                                double atcOx = Formuls.Compute("atcOx", param);
 
-                                        param[13].Value = dnrj;
-                                        nrj += deadEn;
-                                        UpdateOxygen(deadOx);
-                                        predation -= 0.01F;
-                                    }
+                                if (IsOxygenLevelValid(atcOx))
+                                {
+                                    Main.cmap[tx, ty].nrj -= stealEn;
+                                    nrj += getstealedEn;
+                                    UpdateOxygen(atcOx);
+                                    predation -= 0.01F;
+
                                 }
                             }
                             if (Main.fmap[tx, ty] != null)
@@ -2578,7 +2563,7 @@ namespace GOB_Life_Wpf
                                         int maxL = Math.Max(dna1.Length, dna2.Count);
                                         int adr = Math.Abs((int)Math.Round(signals[1]) + maxL);
 
-                                        Gtype[] gen = dna1[dna1.Length % dna1.Length];
+                                        Gtype[] gen = dna1[adr % dna1.Length];
                                         dna2.Insert(adr % dna2.Count, gen);
                                         Main.cmap[tx, ty].DNA = CombineWithDelimiter(dna2.ToArray(), Gtype.start);
 
