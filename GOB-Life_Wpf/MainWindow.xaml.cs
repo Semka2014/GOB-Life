@@ -39,6 +39,15 @@ namespace GOB_Life_Wpf
             MapBox.MouseLeftButtonDown += MapBox_MouseLeftButtonDown;
             MapBox.MouseMove += MapBox_MouseMove;
             MapBox.MouseLeave += MapBox_MouseLeave;
+
+            if (Directory.Exists("Record"))
+            {
+                var framesPNGs = Directory.GetFiles("Record");
+                foreach (var file in framesPNGs)
+                    if (int.TryParse(Path.GetFileNameWithoutExtension(file), out int cfr))
+                        frame = Math.Max(frame, cfr);
+                frame++;
+            }
         }
 
         public static void RenderImage(byte[] pixelData, int width, int height, Image targetImage)
@@ -1826,12 +1835,12 @@ namespace GOB_Life_Wpf
                     {
                         for (int y = 0; y < height; y++)
                         {
-                            if (rnd.Next(0, 100) < 50)
+                            if (rnd.Next(0, 100) < 35)
                             {
                                 cmap[x, y] = new Bot(x, y, 10);
                                 queue.Add(cmap[x, y]);
                             }
-                            else if (rnd.Next(0, 100) < 10)
+                            else if (rnd.Next(0, 100) < 60)
                                 fmap[x, y] = new Food(x, y, 10);
                         }
                     }
@@ -2593,6 +2602,7 @@ namespace GOB_Life_Wpf
                             break;
                     }
 
+                    predation = Math.Max(0, Math.Min(1, predation));
 
                     switch (rot)
                     {
